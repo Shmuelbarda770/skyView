@@ -6,11 +6,11 @@ import queue
 import logging
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, filename='test.log', filemode='a' , format='%(asctime)s - %(levelName)s - %(message)s')
 logger = logging.getLogger()
 
 
-data_queue = queue.Queue()
+data_queue = queue.Queue(maxsize=100)
 
 
 CLOUD_URL = ""
@@ -20,10 +20,10 @@ def send_data_to_cloud():
     while True:
         try:
            
-            data = data_queue.get(block=True)
+            data = data_queue.get(block = True)
            
-            data_dict = json.dumps({"key": "value", "data": data})
-           
+            # data_dict = json.dumps({"key": "value", "data": data})
+            data_dict={"data": data , "input":"input"}
             response = requests.post(CLOUD_URL, json=data_dict)
             if response.status_code == 200:
                 logger.info("Data sent successfully.")
@@ -35,24 +35,24 @@ def send_data_to_cloud():
 
 def collect_data():
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    p = '127.0.0.1' 
-    port = 3000     
-    soc.bind((p, port))
-    soc.listen(1) 
+    ip = '127.0.0.1'
+    port = 3000
+    soc.bind((ip, port))
+    soc.listen(1)
 
     logger.info("Server is listening... Waiting for connection.")
-    client_socket, client_address = soc.accept()
-    logger.info(f"Client connected: {client_address}")
+    server_socket, server_address = soc.accept()
+    logger.info(f"Client connected: {server_address}")
 
     while True:
-        data = client_socket.recv(1024)
+        data = server_socket.recv(1024)
         if not data:
             break
         logger.info(f"Received data: {data.decode()}")
       
         data_queue.put(data.decode())
 
-    client_socket.close()  
+    server_socket.close()
 
 
 def open_socket():
@@ -73,6 +73,8 @@ def stop_socket(soc):
 
 def main():
     open_socket()
+
+    
 
 if __name__ == "__main__":
     main()

@@ -1,13 +1,13 @@
 import socket
 import time
 
-def send_data_to_client():
+def send_data():
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    p = '127.0.0.1' 
+    ip = '127.0.0.1' 
     port = 3000  
     
     try:
-        soc.connect((p, port))  
+        soc.connect((ip, port))  
         print("Connected to the client successfully.")
         
         while True:
@@ -17,13 +17,13 @@ def send_data_to_client():
             time.sleep(2) 
     
     except Exception as e:
-        print(f"Error connecting to the client: {e}")
+        print(f"Error type: {e}")
     
     finally:
         soc.close() 
 
 def main():
-    send_data_to_client()
+    send_data()
 
 if __name__ == "__main__":
     main()
