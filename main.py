@@ -32,23 +32,24 @@ def send_data_to_cloud():
 def collect_data():
 
     soc=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    server = '127.0.0.1'
+    p = '127.0.0.1'
     port = 3000
-    soc.bind((server, port))
+    soc.bind((p, port))
     soc.listen(1000)
     client_socket, client_address = soc.accept()
     data = client_socket.recv(1024)
     print(f": {data.decode()}")
     client_socket.sendall("".encode())
     client_socket.close()
-    soc.close()
+
+
+def close_socket():
+     soc.close()
 
 
 
 
 def main():
-
-
 
     thread_for_cloud = threading.Thread(target=send_data_to_cloud, daemon=True)
     collector_thread = threading.Thread(target=collect_data, daemon=True)
