@@ -30,7 +30,6 @@ listener.start()
 
 
 def send_data_to_cloud(thread_01_status):
-
     while thread_01_status.is_set():
         try:
             data_from_drone = data_queue.get(block=True, timeout=60)
@@ -43,7 +42,6 @@ def send_data_to_cloud(thread_01_status):
             data_from_drone=None
         except Exception as e:
             logger.error(f"Error sending data: {e}")
-        
 
     logger.info("send_data_to_cloud thread stopped")
 
@@ -68,20 +66,13 @@ def collect_data(thread_01_status, soc, route_id , flight_id , platform_id , pla
     server_socket, server_address = soc.accept() ## TODO: logger to indicate that is waiting for connection, put maximum time for connection if no connection print log and keep in a while loop. 
     logger.info("Drone connected")
 
-
     while thread_01_status.is_set():
         try:
             data = server_socket.recv(size_bytes_from_drone)
             if data:
                 data = json.loads(data)
+                data=upData_json(data,route_id , flight_id , platform_id , platform_name , date)
 
-                
-
-                data["route_id"]=route_id
-                data["flight_id"]=flight_id
-                data["platform_id"]=platform_id
-                data["platform_name"]=platform_name
-                data["Date"]=date
                 print(data)
                 logger.info("Data received and information added from the inputs")
 
@@ -97,6 +88,24 @@ def collect_data(thread_01_status, soc, route_id , flight_id , platform_id , pla
         
 
     server_socket.close()## TODO: make sure that the socket is close when the thead is killed
+
+
+def upData_json(new_json, route_id , flight_id , platform_id , platform_name , date):
+    data={'azimuth':new_json['azimuth'],
+            'height': new_json['height'],
+            'roll': new_json['roll'],
+            'pitch': new_json['pitch'],
+            'drone_id': new_json['drone_id'],
+            'timeOfLastKnownLocation': new_json['timeOfLastKnownLocation'],
+            'coordinate': new_json['coordinate'],
+            'route_id':route_id,
+            'flight_id':flight_id,
+            'platform_id':platform_id,
+            'platform_name':platform_name,
+            'Date':date
+            }
+    return data
+
 
 
 def open_socket(thread_01_status,route_id , flight_id , platform_id , platform_name , date):
