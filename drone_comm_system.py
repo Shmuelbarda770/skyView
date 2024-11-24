@@ -5,9 +5,9 @@ import json
 import queue
 import logging
 from json_sender import send
-import pickle
 import threading
 import configparser
+from logging.handlers import QueueHandler, QueueListener
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -20,9 +20,13 @@ size_bytes_from_drone = config.getint('settings', 'size_bytes_from_drone')
 data_queue = queue.Queue(maxsize=queue_size)
 
 
-logging.basicConfig(level=logging.INFO, filename='test.log', filemode='a' , format='%(asctime)s - %(levelname)s - %(message)s') ## TODO: thread safe
+logging.basicConfig(level=logging.INFO, filename='test.log', filemode='w' , format='%(asctime)s - %(levelname)s - %(message)s') ## TODO: thread safe
 logger = logging.getLogger()
-
+log_queue = queue.Queue()
+queue_handler = QueueHandler(log_queue)
+listener = QueueListener(log_queue, *logger.handlers)
+logger.addHandler(queue_handler)
+listener.start()
 
 
 def send_data_to_cloud(thread_01_status):
@@ -36,8 +40,10 @@ def send_data_to_cloud(thread_01_status):
                 # send(data_from_drone)
             else:
                 logger.info("Waiting for data in queue")
+            data_from_drone=None
         except Exception as e:
             logger.error(f"Error sending data: {e}")
+        
 
     logger.info("send_data_to_cloud thread stopped")
 
@@ -58,7 +64,7 @@ def collect_data(thread_01_status, soc, route_id , flight_id , platform_id , pla
         logger.error("Failed to bind socket to ip and port")
         return
 
-    soc.listen(1) ## TODO: why 1?
+    soc.listen(5) ## TODO: why 1?
     server_socket, server_address = soc.accept() ## TODO: logger to indicate that is waiting for connection, put maximum time for connection if no connection print log and keep in a while loop. 
     logger.info("Drone connected")
 
@@ -83,6 +89,8 @@ def collect_data(thread_01_status, soc, route_id , flight_id , platform_id , pla
                 data_queue.queue.clear()
                 logger.warning("Queue has been cleared")
 
+
+            
             data_queue.put(data)
         except Exception as e:
             logger.warning(f"{e}")
@@ -92,6 +100,7 @@ def collect_data(thread_01_status, soc, route_id , flight_id , platform_id , pla
 
 
 def open_socket(thread_01_status,route_id , flight_id , platform_id , platform_name , date):
+    print("open_soc")
     soc = None
     collector_thread = threading.Thread(target=collect_data, args=(thread_01_status, soc,route_id , flight_id , platform_id , platform_name , date), daemon=True)
     collector_thread.start()
@@ -103,12 +112,10 @@ def open_socket(thread_01_status,route_id , flight_id , platform_id , platform_n
     cloud_thread.join()
 
 
+
+
 def stop(thread_01_status):
     logger.info("Stopping Connection")
     thread_01_status.clear()
-
-
-
-
-
+    print(threading.enumerate())
     
