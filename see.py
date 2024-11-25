@@ -3,7 +3,7 @@ import threading
 import json
 import queue
 import logging
-from json_sender import send
+#from json_sender import send
 import configparser
 from logging.handlers import QueueHandler, QueueListener
 
