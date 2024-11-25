@@ -4,23 +4,27 @@ import threading
 import json
 import queue
 import logging
+import time
 from json_sender import send
-import threading
-import configparser
 from logging.handlers import QueueHandler, QueueListener
+import configparser
+from concurrent.futures import ThreadPoolExecutor
+
 
 config = configparser.ConfigParser()
 config.read('config.ini')
-
-
 
 queue_size = config.getint('settings', 'queue_size')
 size_bytes_from_drone = config.getint('settings', 'size_bytes_from_drone')
 
 data_queue = queue.Queue(maxsize=queue_size)
+server_socket = None
+executor = None
+future_collector = None
+future_cloud = None
 
 
-logging.basicConfig(level=logging.INFO, filename='test.log', filemode='w' , format='%(asctime)s - %(levelname)s - %(message)s') ## TODO: thread safe
+logging.basicConfig(level=logging.INFO, filename='test.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 log_queue = queue.Queue()
 queue_handler = QueueHandler(log_queue)
@@ -28,103 +32,144 @@ listener = QueueListener(log_queue, *logger.handlers)
 logger.addHandler(queue_handler)
 listener.start()
 
-
 def send_data_to_cloud(thread_01_status):
+    logger.info("Cloud thread started")
     while thread_01_status.is_set():
         try:
             data_from_drone = data_queue.get(block=True, timeout=60)
             if data_from_drone:
                 logger.info("Sending data to cloud")
-                json.dumps(data_from_drone)
-                # send(data_from_drone)
-            else:
-                logger.info("Waiting for data in queue")
-            data_from_drone=None
+                data_from_drone=json.dumps(data_from_drone)
+                send(data_from_drone)
+        except queue.Empty:
+            continue
         except Exception as e:
             logger.error(f"Error sending data: {e}")
+            if not thread_01_status.is_set():
+                break
+    logger.info("Cloud thread stopped")
 
-    logger.info("send_data_to_cloud thread stopped")
 
-
-def collect_data(thread_01_status, soc, route_id , flight_id , platform_id , platform_name , date):
-
-    # ip = config.get('settings', 'ip')
-    # port = config.getint('settings', 'port')
-    ip = "127.0.0.1"
-    port = 3000
-
-    soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+def collect_data(thread_01_status, route_id, flight_id, platform_id, platform_name, date):
+    global server_socket
+    logger.info("Collector thread started")
+    
     try:
-        soc.bind((ip, port))
-        logger.info("Successfully bound to ip and port")
-    except Exception as e:
-        logger.error("Failed to bind socket to ip and port")
-        return
-
-    soc.listen(5) ## TODO: why 1?
-    server_socket, server_address = soc.accept() ## TODO: logger to indicate that is waiting for connection, put maximum time for connection if no connection print log and keep in a while loop. 
-    logger.info("Drone connected")
-
-    while thread_01_status.is_set():
-        try:
-            data = server_socket.recv(size_bytes_from_drone)
-            if data:
-                data = json.loads(data)
-                data=upData_json(data,route_id , flight_id , platform_id , platform_name , date)
-
-                print(data)
-                logger.info("Data received and information added from the inputs")
-
-            if data_queue.full():
-                data_queue.queue.clear()
-                logger.warning("Queue has been cleared")
-
-
-            
-            data_queue.put(data)
-        except Exception as e:
-            logger.warning(f"{e}")
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind(("127.0.0.1", 3000))
+        server_socket.listen(1)
+        server_socket.settimeout(1)
         
+        while thread_01_status.is_set():
+            try:
+                client, addr = server_socket.accept()
+                logger.info("Drone connected")
+                
+                while thread_01_status.is_set():
+                    data = client.recv(size_bytes_from_drone)
+                    if not data:
+                        break
+                    
+                    data = json.loads(data)
+                    data = upData_json(data, route_id, flight_id, platform_id, platform_name, date)
+                    
+                    if data_queue.full():
+                        data_queue.queue.clear()
+                    
+                    data_queue.put(data)
+                    
+            except socket.timeout:
+                continue
+            except Exception as e:
+                logger.error(f"Collection error: {e}")
+                if not thread_01_status.is_set():
+                    break
+                time.sleep(1)
+                
+    except Exception as e:
+        logger.error(f"Socket error: {e}")
+    finally:
+        if server_socket:
+            try:
+                server_socket.close()
+                server_socket = None
+            except:
+                pass
+        logger.info("Collector thread stopped")
 
-    server_socket.close()## TODO: make sure that the socket is close when the thead is killed
 
+def upData_json(new_json, route_id, flight_id, platform_id, platform_name, date):
+    return {
+        'azimuth': new_json['azimuth'],
+        'height': new_json['height'],
+        'roll': new_json['roll'],
+        'pitch': new_json['pitch'],
+        'drone_id': new_json['drone_id'],
+        'timeOfLastKnownLocation': new_json['timeOfLastKnownLocation'],
+        'coordinate': new_json['coordinate'],
+        'route_id': route_id,
+        'flight_id': flight_id,
+        'platform_id': platform_id,
+        'platform_name': platform_name,
+        'Date': date
+    }
 
-def upData_json(new_json, route_id , flight_id , platform_id , platform_name , date):
-    data={'azimuth':new_json['azimuth'],
-            'height': new_json['height'],
-            'roll': new_json['roll'],
-            'pitch': new_json['pitch'],
-            'drone_id': new_json['drone_id'],
-            'timeOfLastKnownLocation': new_json['timeOfLastKnownLocation'],
-            'coordinate': new_json['coordinate'],
-            'route_id':route_id,
-            'flight_id':flight_id,
-            'platform_id':platform_id,
-            'platform_name':platform_name,
-            'Date':date
-            }
-    return data
-
-
-
-def open_socket(thread_01_status,route_id , flight_id , platform_id , platform_name , date):
-    print("open_soc")
-    soc = None
-    collector_thread = threading.Thread(target=collect_data, args=(thread_01_status, soc,route_id , flight_id , platform_id , platform_name , date), daemon=True)
-    collector_thread.start()
-
-    cloud_thread = threading.Thread(target=send_data_to_cloud, args=(thread_01_status,), daemon=True)
-    cloud_thread.start()
-
-    collector_thread.join()
-    cloud_thread.join()
-
-
-
+def open_socket(thread_01_status, route_id, flight_id, platform_id, platform_name, date):
+    global executor, future_collector, future_cloud
+    
+    
+    stop(thread_01_status)
+    
+   
+    thread_01_status.clear()
+    thread_01_status.set()
+    
+   
+    if executor is None or executor._shutdown:
+        executor = ThreadPoolExecutor(max_workers=2)
+    
+    
+    future_collector = executor.submit(collect_data, thread_01_status, route_id, flight_id, platform_id, platform_name, date)
+    future_cloud = executor.submit(send_data_to_cloud, thread_01_status)
+    
+    logger.info(f"Active threads: {threading.active_count()}")
+    for t in threading.enumerate():
+        logger.info(f"Thread name: {t.name}")
 
 def stop(thread_01_status):
+    global executor, future_collector, future_cloud, server_socket
+    
     logger.info("Stopping Connection")
     thread_01_status.clear()
-    print(threading.enumerate())
     
+    
+    if server_socket:
+        try:
+            server_socket.close()
+            server_socket = None
+        except:
+            pass
+    
+    if executor:
+        if future_collector:
+            future_collector.cancel()
+        if future_cloud:
+            future_cloud.cancel()
+        
+        executor.shutdown(wait=True, cancel_futures=True)
+        executor = None
+    
+    future_collector = None
+    future_cloud = None
+    
+    while not data_queue.empty():
+        try:
+            data_queue.get_nowait()
+        except:
+            pass
+    
+    logger.info(f"Remaining active threads: {threading.active_count()}")
+    print(f"Remaining active threads: {threading.active_count()}")
+    for t in threading.enumerate():
+        logger.info(f"Thread name: {t.name}")
