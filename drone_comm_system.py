@@ -4,8 +4,9 @@ import threading
 import json
 import queue
 import logging
-import time
 from json_sender import send
+import threading
+import configparser
 from logging.handlers import QueueHandler, QueueListener
 import configparser
 from concurrent.futures import ThreadPoolExecutor
@@ -18,10 +19,6 @@ queue_size = config.getint('settings', 'queue_size')
 size_bytes_from_drone = config.getint('settings', 'size_bytes_from_drone')
 
 data_queue = queue.Queue(maxsize=queue_size)
-server_socket = None
-executor = None
-future_collector = None
-future_cloud = None
 
 
 logging.basicConfig(level=logging.INFO, filename='test.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
