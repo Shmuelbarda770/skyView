@@ -4,6 +4,9 @@ import json
 import queue
 import logging
 import time
+import sys
+from pathlib import Path
+
 from json_sender import send 
 from logging.handlers import QueueHandler, QueueListener
 import configparser
@@ -12,8 +15,16 @@ from concurrent.futures import ThreadPoolExecutor
 from updatePage import blink_light,message_view,add_num_cont_send_json_to_cloud,add_num_cont_json_received
 from data_validation import validate_azimuth,validate_coordinate,validate_height,validate_pitch,validate_roll,validate_timeOfLastKnownLocation
 
+
+if hasattr(sys, "_MEIPASS"):
+    PROJ_ROOT = Path(getattr(sys, "_MEIPASS"))
+else:
+    PROJ_ROOT = Path(__file__).resolve().parent
+
+config_path = PROJ_ROOT / 'config.ini'
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(config_path)
 
 queue_size = config.getint('settings', 'queue_size')
 size_bytes_from_drone = config.getint('settings', 'size_bytes_from_drone')
@@ -29,7 +40,7 @@ server_data = {
 }
 
 
-logging.basicConfig(level=logging.INFO, filename='test.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, filename='test.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 log_queue = queue.Queue()
 queue_handler = QueueHandler(log_queue)
@@ -47,7 +58,7 @@ def send_data_to_cloud(thread_01_status):
                 logger.info("Sending data to cloud")
                 data=json.dumps(data_from_drone)
                 print(data)
-                # send(data)
+                send(data)
                 add_num_cont_send_json_to_cloud(server_data['cont_send_json_to_cloud'])
         except queue.Empty:
             continue
@@ -67,30 +78,38 @@ def collect_data(thread_01_status, route_id, Platform_flight_index, platform_id,
 
         ip=config.get('settings','ip')
         port=config.getint('settings','port')
-
+        print(len(ip))
         try:
-            server_data['server_socket'].bind(("127.0.0.1", 3000))
+
+            server_data['server_socket'].bind((ip, port))
+            
             logger.info("Successfully bound to ip and port")
         except Exception as e:
             logger.info(f"Failed to bind IP and port and the error is: {e}")
         
         server_data['server_socket'].listen(1)
+        
         server_data['server_socket'].settimeout(1)
         
         while thread_01_status.is_set():
+            
             try:
+                print("n")
                 server, address = server_data['server_socket'].accept()
+                print(server)
                 logger.info("Drone connected")
-                message_view(server_data['status_connection'],"Connection to drone")
+                # message_view(server_data['status_connection'],"Connection to drone")
+                
                 # blink_light(server_data['status_indicator_yellow'], "yellow", "transparent")
                 while thread_01_status.is_set():
                     data = server.recv(size_bytes_from_drone)
-
+                    print(data)
                     add_num_cont_json_received(server_data['cont_json_received'])
                     # blink_light(server_data['status_indicator_green'], "green", "transparent")
                     message_view(server_data['status_connection'],'receives json from drone')
+                    print("s")
                     data = upData_json(data,route_id, platform_name, platform_id, date,Platform_flight_index)
-                    
+                    print(data)
                     queue_status(data)
                     
             except socket.timeout:

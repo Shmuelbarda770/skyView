@@ -4,8 +4,8 @@ import json
 
 def send_data():
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    ip = '127.0.0.1' 
-    port = 3000 
+    ip = "192.168.10.185" 
+    port = 4042
     
     try:
         soc.connect((ip, port))  
