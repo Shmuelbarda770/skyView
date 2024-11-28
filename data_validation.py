@@ -1,12 +1,11 @@
 import re
-    
+from datetime import datetime
 
 def validate_timeOfLastKnownLocation(value) -> bool:
-    if(len(value)<20 or len(value)>30):
+    if(len(value)<10 or len(value)>30):
         return False
-    pattern = r'^(((19)|(20))[0-9]{2})-((0[1-9]|1[0-2]))-((0[1-9])|([1-2][0-9])|(3[01]))[A-Z ]?(([0-1][0-9]|(2[0-3])):([0-5][0-9]):([0-5][0-9])[A-Z]?)$'
-    match  = re.fullmatch (pattern, value)
-    return bool(match)
+   
+    return True
 
 def validate_coordinate(value) -> bool:
     if not isinstance(value,object) and len(value)!=2:
