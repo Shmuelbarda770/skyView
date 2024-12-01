@@ -13,7 +13,7 @@ import configparser
 from concurrent.futures import ThreadPoolExecutor
 
 from updatePage import blink_light,message_view,add_num_cont_send_json_to_cloud,add_num_cont_json_received
-from data_validation import validate_azimuth,validate_coordinate,validate_height,validate_pitch,validate_roll,validate_timeOfLastKnownLocation
+from data_validation import validate_azimuth,validate_coordinate,validate_height,validate_timeOfLastKnownLocation
 
 
 if hasattr(sys, "_MEIPASS"):
@@ -44,8 +44,15 @@ logging.basicConfig(level=logging.INFO, filename='test.log', filemode='w', forma
 logger = logging.getLogger()
 log_queue = queue.Queue()
 queue_handler = QueueHandler(log_queue)
+
+
+stream_handler = logging.StreamHandler()
+logger.addHandler(stream_handler)
+
+
 listener = QueueListener(log_queue, *logger.handlers)
 logger.addHandler(queue_handler)
+
 listener.start()
 
 
@@ -58,7 +65,7 @@ def send_data_to_cloud(thread_01_status):
                 logger.info("Sending data to cloud")
                 data=json.dumps(data_from_drone)
                 print(data)
-                send(data)
+                # send(data)
                 add_num_cont_send_json_to_cloud(server_data['cont_send_json_to_cloud'])
         except queue.Empty:
             continue
@@ -69,66 +76,67 @@ def send_data_to_cloud(thread_01_status):
     logger.info("Cloud thread stopped")
 
 
+
+
 def collect_data(thread_01_status, route_id, Platform_flight_index, platform_id, platform_name, date):
     try:
-        message_view(server_data['status_connection'],"Waiting to connect")
+        message_view(server_data['status_connection'], "Waiting to connect")
         server_data['server_socket'] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        
-        # server_data['server_socket'].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        # ip=config.get('settings','ip')
-        port=config.getint('settings','port')
-        print(len(ip))
-        try:
-
-            server_data['server_socket'].bind((ip, port))
-            
-            logger.info("Successfully bound to ip and port")
-        except Exception as e:
-            logger.info(f"Failed to bind IP and port and the error is: {e}")
-        
-        server_data['server_socket'].listen(1)
-        
-        server_data['server_socket'].settimeout(1)
-        
         while thread_01_status.is_set():
+            ip = config.get('settings', 'ip')
+            port = config.getint('settings', 'port')
+
             
-            try:
-                print("n")
-                server, address = server_data['server_socket'].accept()
-                print(server)
-                logger.info("Drone connected")
-                # message_view(server_data['status_connection'],"Connection to drone")
+            connected = False
+            while not connected and thread_01_status.is_set():
+                try:
+                    server_data['server_socket'].bind((ip, port))
+                    logger.info("Successfully bound to IP and port")
+                    connected = True
+                except Exception as e:
+                    logger.error(f"Failed to bind IP and port: {e}. Retrying...")
+                    time.sleep(1) 
+
+            server_data['server_socket'].listen(1)
+
+            while thread_01_status.is_set():
+                try:
+                    logger.info("Waiting for drone to connect")
+                    server, address = server_data['server_socket'].accept()
+                    message_view(server_data['status_connection'], "Connection to drone")
+                except Exception as e:
+                    logger.error(f"Error while waiting for drone connection: {e}")
+                    continue
+
                 
-                # blink_light(server_data['status_indicator_yellow'], "yellow", "transparent")
-                while thread_01_status.is_set():
-                    data = server.recv(size_bytes_from_drone)
-                    print(data)
-                    add_num_cont_json_received(server_data['cont_json_received'])
-                    # blink_light(server_data['status_indicator_green'], "green", "transparent")
-                    message_view(server_data['status_connection'],'receives json from drone')
-                    print("s")
-                    data = upData_json(data,route_id, platform_name, platform_id, date,Platform_flight_index)
-                    print(data)
-                    queue_status(data)
-                    
-            except socket.timeout:
-                continue
-            except Exception as e:
-                logger.error(f"Failed to connect to drone and the error is: {e}")
-                if not thread_01_status.is_set():
-                    break
-                time.sleep(1)
-                
+                while thread_01_status.is_set() and server:
+                    try:
+                        data = server.recv(size_bytes_from_drone)
+                        print(data)
+                        
+                        logger.info(f"Data received: {data}")
+                        add_num_cont_json_received(server_data['cont_json_received'])
+                        message_view(server_data['status_connection'], 'Receives JSON from drone')
+
+                        processed_data = upData_json(data, route_id, platform_name, platform_id, date, Platform_flight_index)
+                        print(processed_data)
+                        if processed_data:
+                            queue_status(processed_data)
+                    except Exception as e:
+                        logger.error(f"Error during drone connection: {e}")
+                        continue
+
     except Exception as e:
         logger.error(f"Socket error: {e}")
     finally:
         if server_data['server_socket']:
             try:
                 server_data['server_socket'].close()
-                server_data['server_socket'] = None
+                logger.info("Socket closed")
             except Exception as e:
-                logger.error(f"Failed to close the connection with the drone, and the error is: {e}")
+                logger.error(f"Failed to close the socket: {e}")
+
 
 
 def open_socket(thread_01_status, route_id, Platform_flight_index, platform_id,
@@ -190,7 +198,6 @@ def stop(thread_01_status,status_indicator_red,status_connection,light=True,show
     
 
 def queue_status(data_to_queue):
-    print("d")
     if data_queue.full():
         clear_queue()
                     
@@ -200,16 +207,14 @@ def queue_status(data_to_queue):
 
 def upData_json(new_json,route_id, platform_name, platform_id, date,Platform_flight_index):
     data_conversion = json.loads(new_json)
-    print(data_conversion)
+
     validate_data_conversion=validate_json(data_conversion)
-    print(validate_data_conversion)
+    
     if validate_data_conversion:
         data={
             'azimuth': data_conversion['azimuth'],
             'height': data_conversion['height'],
-            'roll': data_conversion['roll'],
-            'pitch': data_conversion['pitch'],
-            'drone_id': data_conversion['drone_id'],
+            'drone_id': data_conversion['droneId'],
             'timeOfLastKnownLocation': data_conversion['timeOfLastKnownLocation'],
             'coordinate': data_conversion['coordinate'],
             'route_id': route_id,
@@ -228,11 +233,12 @@ def upData_json(new_json,route_id, platform_name, platform_id, date,Platform_fli
 
 def validate_json(data_conversion):
     try:
-        if validate_azimuth(data_conversion['azimuth']) and validate_coordinate(data_conversion['coordinate']) and validate_height(data_conversion['height']) and validate_pitch(data_conversion['pitch']) and validate_roll(data_conversion['roll']) and validate_timeOfLastKnownLocation(data_conversion['timeOfLastKnownLocation']):
+        if validate_azimuth(data_conversion['azimuth']) and validate_coordinate(data_conversion['coordinate']) and validate_height(data_conversion['height']) and validate_timeOfLastKnownLocation(data_conversion['timeOfLastKnownLocation']):
             return True
         return False
     except Exception as e:
-        logger.warning(f'Problem with validate json, and the error is:{e}')
+        
+        logger.warning(f'Problem with validate json, and the error is:{e},the data is: {data_conversion}')
 
 
 def clear_queue():

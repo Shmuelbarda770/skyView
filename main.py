@@ -196,12 +196,26 @@ def main(page: Page):
             )
 
         )
+
+        
         page.update()
     
     submit_button.on_click = switch_to_start_stop
     start_stop_button.on_click = start_stop_handler
     
+    def clean_up():
+        if thread_01_status.is_set():
+            print("Cleaning up resources")
+            thread_01_status.clear()
+            stop(thread_01_status, status_indicator_red, status_connection)
     
+    
+    def on_window_close(e):
+        clean_up()
+        print("Window is closing")
+        page.window_close() 
+
+    page.on_window_close = on_window_close
 
     update_view()
 
