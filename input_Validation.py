@@ -1,6 +1,5 @@
 import re
 
-
 def validate_route_id(value:str) ->bool:
     pattern = r'^[a-zA-Z0-9_]{1,20}$'
     match  = re.fullmatch(pattern, value)
@@ -25,6 +24,3 @@ def validate_Platform_flight_index(value:str) ->bool:
     pattern = r'^[0-9]+$'
     match  = re.fullmatch(pattern, value)
     return bool(match)
-
-
-

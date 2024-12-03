@@ -1,12 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+additional_packages =list()
+
+
+additional_packages.append('flet')
+additional_packages.append('flet-desktop-light')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[('config.ini', '.')],
-    hiddenimports=['libpython3.12.so.1.0'],
+    hiddenimports=additional_packages,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
