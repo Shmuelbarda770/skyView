@@ -6,12 +6,12 @@ import logging
 import time
 import sys
 from pathlib import Path
-from json_sender import send
+from cloud_func.json_sender import send
 from logging.handlers import QueueHandler, QueueListener,TimedRotatingFileHandler
 import configparser
 from concurrent.futures import ThreadPoolExecutor
 from updatePage import light,message_view,add_num_cont_send_json_to_cloud,add_num_cont_json_received,show_error_in_screen
-from data_validation import validate_azimuth,validate_coordinate,validate_height,validate_timeOfLastKnownLocation
+from validation.data_validation import validate_azimuth,validate_coordinate,validate_height,validate_timeOfLastKnownLocation
 import datetime
 
 if hasattr(sys, "_MEIPASS"):
@@ -166,6 +166,7 @@ def collect_data(thread_01_status, route_id, Platform_flight_index, platform_id,
             try:
                 server_data['server_socket'].close()
                 logger.info("Socket closed")
+                stop(thread_01_status,server_data['status_connection'],server_data['running_problems'],False)
             except Exception as e:
                 logger.error(f"Failed to close the socket: {e}")
                 show_error_in_screen( server_data['running_problems'],"Failed to close the socket")

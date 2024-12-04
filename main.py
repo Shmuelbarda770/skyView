@@ -3,10 +3,11 @@ import threading
 import flet as ft
 from flet import Page, TextField, ElevatedButton, Row, Column,Text
 from datetime import datetime
-from drone_comm_system import open_socket
 from drone_comm_system import open_socket, stop
-from input_Validation import validate_date,validate_Platform_flight_index,validate_platform_id,validate_platform_name,validate_route_id
-from flet import colors as cl
+from validation.input_Validation import validate_date,validate_Platform_flight_index,validate_platform_id,validate_platform_name,validate_route_id
+from flet import Colors as cl,Icons
+
+
 def main(page: Page):
 
     thread_01_status = threading.Event()
@@ -24,9 +25,9 @@ def main(page: Page):
 
     title=Text("Drone Management Dashboard",size=30,weight="bold",color=cl.CYAN,text_align="center")
     route_id = TextField(label="Route id",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=20,value='ffghghfsfh',hint_text="Only letters or numbers",color='black',text_align="center",border_radius=8)
-    Platform_flight_index = TextField(label="Platform flight index",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=3,value='ABC',hint_text="Only uppercase letters",color='black',text_align="center",border_radius=8)
+    Platform_flight_index = TextField(label="Platform flight index",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=3,value='123',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
     platform_id = TextField(label="Platform id", width=250,bgcolor=cl.GREY_200, height=60, fill_color='blue-light', max_length=3,value='232',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
-    platform_name = TextField(label="Platform name",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light' ,max_length=3,value='SDA',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
+    platform_name = TextField(label="Platform name",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light' ,max_length=3,value='SDA',hint_text="Only letters",color='black',text_align="center",border_radius=8)
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
    
@@ -40,7 +41,7 @@ def main(page: Page):
     date_now=datetime.now()
     date = ft.ElevatedButton(
         "Pick Date",
-        icon=ft.icons.CALENDAR_MONTH,
+        icon=Icons.CALENDAR_MONTH,
         on_click=lambda e: page.open(
             ft.DatePicker(
                 first_date=datetime(year=date_now.year, month=date_now.month, day=date_now.day),
@@ -53,32 +54,11 @@ def main(page: Page):
         height=50
     )
     
-    output=ft.Text(value="",color='red')
-    
-    status_indicator_red = ft.Container(
-        width=20,
-        height=20,
-        bgcolor="red",
-        border_radius=25,
-        alignment=ft.alignment.center,
-        visible=True
-    )
-    status_indicator_yellow = ft.Container(
-        width=20,
-        height=20,
-        bgcolor="yellow",
-        border_radius=25,
-        alignment=ft.alignment.center,
-        visible=False
-    )
-    status_indicator_green = ft.Container(
-        width=20,
-        height=20,
-        bgcolor="green",
-        border_radius=25,
-        alignment=ft.alignment.center,
-        visible=False
-    )
+    output_error_validation=ft.Text(value="",color='red')
+    status_indicator_red = ft.Container(width=20,height=20,bgcolor="red",border_radius=25,alignment=ft.alignment.center,visible=True)
+    status_indicator_yellow = ft.Container(width=20,height=20,bgcolor="yellow",border_radius=25,alignment=ft.alignment.center,visible=False)
+    status_indicator_green = ft.Container(width=20,height=20,bgcolor="green", border_radius=25,alignment=ft.alignment.center,visible=False)
+
     
     status_connection= ft.Text(value="",color="white")
     cont_json_received= ft.Text(value="0",color="white")
@@ -90,7 +70,7 @@ def main(page: Page):
    
     
 
-    start_stop_button = ElevatedButton(text="start", width=200, bgcolor=ft.colors.GREEN)
+    start_stop_button = ElevatedButton(text="start", width=200, bgcolor=cl.GREEN)
 
     def start_stop_handler(e):
         nonlocal is_processing
@@ -155,18 +135,18 @@ def main(page: Page):
 
         
         if (not validate_route_id(route_id_value) or
-            not validate_platform_name(Platform_flight_index_value) or
+            not validate_platform_name(platform_name_value) or
             not validate_platform_id(platform_id_value) or
-            not validate_Platform_flight_index(platform_name_value) or
+            not validate_Platform_flight_index(Platform_flight_index_value) or
             not validate_date(date_value)):
             
-            output.value = "All inputs required"
+            output_error_validation.value = "Please ensure all required fields"
             page.update()
-            return False  
+            return False
         
         
         is_details_entered = True
-        output.value = ""
+        output_error_validation.value = ""
         return True  
 
 
@@ -178,46 +158,16 @@ def main(page: Page):
 
         page.add(
             Row(controls=[title],alignment=ft.MainAxisAlignment.CENTER),
-            Row(
-                controls=[platform_name, platform_id,date],
-                alignment=ft.MainAxisAlignment.CENTER
-            ),
-            Row(
-                controls=[Platform_flight_index,route_id],
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=20
-            ),
-            Column(
-                controls=[start_stop_button,status_connection],
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=20
-            ),
-            Row(
-                controls=[status_indicator_red,status_indicator_yellow,status_indicator_green],
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=20
-            ),
-            Row(
-                controls=[explanation_text_cont_json_received,cont_json_received,output],
-                alignment=ft.MainAxisAlignment.START,
-                spacing=20
-                ),
-            Row(
-                controls=[explanation_text_cont_send_json_to_cloud,cont_send_json_to_cloud],
-                alignment=ft.MainAxisAlignment.START,
-                spacing=20
-                ),
-            Row(
-                controls=[explanation_running_problems,running_problems],
-                alignment=ft.MainAxisAlignment.START,
-                spacing=20
-            )
-
+            Row(controls=[platform_name, platform_id,date],alignment=ft.MainAxisAlignment.CENTER),
+            Row(controls=[Platform_flight_index,route_id],alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Column(controls=[start_stop_button,status_connection],alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Row(controls=[status_indicator_red,status_indicator_yellow,status_indicator_green],alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Row(controls=[explanation_text_cont_json_received,cont_json_received,output_error_validation],alignment=ft.MainAxisAlignment.START,spacing=20),
+            Row(controls=[explanation_text_cont_send_json_to_cloud,cont_send_json_to_cloud],alignment=ft.MainAxisAlignment.START,spacing=20),
+            Row(controls=[explanation_running_problems,running_problems],alignment=ft.MainAxisAlignment.START,spacing=20)
         )
 
-        
         page.update()
-
     
     start_stop_button.on_click = start_stop_handler
 

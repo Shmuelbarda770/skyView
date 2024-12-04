@@ -7,6 +7,7 @@ def light(status_indicator_green, status_indicator_red, status_indicator_yellow,
 
     if color_status == "red":
         status_indicator_red.visible = True
+        time.sleep(1)
     elif color_status == "yellow":
         status_indicator_yellow.visible = True
     elif color_status == "green":

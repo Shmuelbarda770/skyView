@@ -6,6 +6,7 @@ def validate_timeOfLastKnownLocation(value) -> bool:
    
     return True
 
+
 def validate_coordinate(value: object) -> bool:
     if not isinstance(value, list) or len(value) != 2:
         return False
@@ -31,6 +32,7 @@ def validate_height(value) -> bool:
     
     return True
 
+
 def validate_azimuth(value) -> bool:
     if not is_float(value):
         return False
@@ -40,30 +42,32 @@ def validate_azimuth(value) -> bool:
     
     return True
 
+
+def validate_roll(value) -> bool:
+    if not is_float(value):
+        return False
+
+    roll_float = float(value)
+    if roll_float < -181 or roll_float > 181:
+        return False
+    
+    return True
+
+
+def validate_pitch(value) -> bool:
+    if not is_float(value):
+        return False
+
+    pitch_float = float(value)
+    if pitch_float < -181 or pitch_float > 181:
+        return False
+    
+    return True
+
+
 def is_float(value) -> bool:
     try:
         float(value)
         return True
     except (ValueError, TypeError):
         return False
-
-
-# def validate_roll(value) -> bool:
-#     if not is_float(value):
-#         return False
-
-#     roll_float = float(value)
-#     if roll_float < -181 or roll_float > 181:
-#         return False
-    
-#     return True
-
-# def validate_pitch(value) -> bool:
-#     if not is_float(value):
-#         return False
-
-#     pitch_float = float(value)
-#     if pitch_float < -181 or pitch_float > 181:
-#         return False
-    
-#     return True
