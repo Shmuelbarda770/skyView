@@ -85,16 +85,17 @@ def main(page: Page):
         try:
             if thread_01_status.is_set():
                 print("stop")
+                thread_01_status.clear()
                 disabled_input_on_start=False
                 disabled_input(disabled_input_on_start)
                 start_stop_button.text = "start"
                 start_stop_button.bgcolor = 'green'
                 start_stop_button.update()
                 page.update()
-                thread_01_status.clear()
                 stop(thread_01_status, status_connection,running_problems)
             else:
                 print("start")
+                thread_01_status.set()
                 disabled_input_on_stop=True
                 disabled_input(disabled_input_on_stop)
                 start_stop_button.text = "stop"

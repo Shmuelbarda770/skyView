@@ -1,3 +1,5 @@
+
+
 import socket
 import threading
 import json
@@ -13,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from updatePage import light,message_view,add_num_cont_send_json_to_cloud,add_num_cont_json_received,show_error_in_screen
 from validation.data_validation import validate_azimuth,validate_coordinate,validate_height,validate_timeOfLastKnownLocation
 import datetime
+
 
 if hasattr(sys, "_MEIPASS"):
     PROJ_ROOT = Path(getattr(sys, "_MEIPASS"))
@@ -120,12 +123,12 @@ def collect_data(thread_01_status, route_id, Platform_flight_index, platform_id,
                 except Exception as e:
                     logger.error(f"Failed to bind IP and port: {e},the ip  is:{ip} and port : {port}")
                     show_error_in_screen( server_data['running_problems'],"Failed to bind IP and port")
-                    time.sleep(1)
 
             socket_listen= config.getint('settings', 'socket_listen') or 1
             server_data['server_socket'].listen(socket_listen)
             while thread_01_status.is_set():
                 try:
+                    
                     logger.info("Waiting for drone to connect")
                     server, address = server_data['server_socket'].accept()
                     message_view(server_data['status_connection'], "Connection to drone")
@@ -155,7 +158,10 @@ def collect_data(thread_01_status, route_id, Platform_flight_index, platform_id,
                     except Exception as e:
                         logger.error(f"Error during drone connection: {e}")
                         show_error_in_screen( server_data['running_problems'],"The drone stop to send JSON")
-                        break
+                        if not thread_01_status.is_set():
+                            break
+                        time.sleep(1)
+
 
     except Exception as e:
         logger.error(f"Socket error: {e}")
@@ -166,7 +172,6 @@ def collect_data(thread_01_status, route_id, Platform_flight_index, platform_id,
             try:
                 server_data['server_socket'].close()
                 logger.info("Socket closed")
-                stop(thread_01_status,server_data['status_connection'],server_data['running_problems'],False)
             except Exception as e:
                 logger.error(f"Failed to close the socket: {e}")
                 show_error_in_screen( server_data['running_problems'],"Failed to close the socket")
@@ -209,7 +214,8 @@ def stop(thread_01_status,status_connection,running_problems,show=True):
 
     logger.info("Stopping connection")
     thread_01_status.clear()
-    
+    clear_queue()
+
     if server_data['server_socket']:
         try:
             server_data['server_socket'].close()
@@ -224,13 +230,13 @@ def stop(thread_01_status,status_connection,running_problems,show=True):
         if server_data['future_cloud']:
             server_data['future_cloud'].cancel()
         
-        server_data['executor'].shutdown(wait=True, cancel_futures=True)
-        server_data['executor'] = None
+        if server_data['executor']:
+            server_data['executor'].shutdown(wait=True, cancel_futures=True)
+            server_data['executor'] = None
     
     server_data['future_collector'] = None
     server_data['future_cloud'] = None
     
-    clear_queue()
 
     if show:
         message_view(status_connection,'Stopping connection')
@@ -240,10 +246,9 @@ def stop(thread_01_status,status_connection,running_problems,show=True):
 def queue_status(data_to_queue):
     if data_queue.full():
         clear_queue()
-                    
+                  
     data_queue.put(data_to_queue)
     logger.info("Data added to queue")
-
 
 
 def upData_json(new_json,route_id, platform_name, platform_id, date,Platform_flight_index):
@@ -272,6 +277,7 @@ def upData_json(new_json,route_id, platform_name, platform_id, date,Platform_fli
     else:
         pass
 
+
 def validate_json(data_conversion):
     try:
         if validate_azimuth(data_conversion['azimuth']) and validate_coordinate(data_conversion['coordinate']) and validate_height(data_conversion['height']) and validate_timeOfLastKnownLocation(data_conversion['timeOfLastKnownLocation']):
@@ -283,11 +289,12 @@ def validate_json(data_conversion):
 
 
 def clear_queue():
+
+
     while not data_queue.empty():
         try:
             data_queue.get_nowait()
         except Exception as e:
             logger.error(f"Failed to clear the queue: {e}")
             
-
     logger.info("Queue is full and has been cleared")
