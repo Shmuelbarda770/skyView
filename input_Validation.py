@@ -1,28 +1,30 @@
 import re
 
-def validate_string(value:str) ->bool:
-    pattern = r'^[a-zA-Z\s]{2,20}$'
-    match  = re.fullmatch (pattern, value)
-    return bool(match)
-
-def validate_int(value:str)-> bool :
-    pattern = r'^[0-9]{2,20}$'
-    match  = re.fullmatch (pattern, value)
-    return bool(match)
-
-def validate_float(value:str) -> bool:
-    pattern = r'^[-]?\d+\.\d{2,20}$'
+def validate_route_id(value:str) ->bool:
+    pattern = r'^[a-zA-Z0-9_]{1,20}$'
     match  = re.fullmatch(pattern, value)
     return bool(match)
 
-def validate_date(value):
-    pattern = r'^0?[0-9]{1,2}\-0?[0-9]{1,2}\-[0-9]{4}$'
+
+def validate_platform_name(value:str) ->bool:
+    pattern = r'^[A-Za-z]{3}$'
     match  = re.fullmatch(pattern, value)
     return bool(match)
 
-def validate_len_of_value(value):
-    if len(value)>20 or len(value)<2:
-        return False
-    return True
+
+def validate_platform_id(value:str) ->bool:
+    pattern = r'^[0-9]{1,3}$'
+    match  = re.fullmatch(pattern, value)
+    return bool(match)
 
 
+def validate_date(value:str) ->bool:
+    pattern = r'^(((19)|(20))[0-9]{2})-((0[1-9])|(1[0-2]))-((0[1-9])|([1-2][0-9])|(3[01]))$'
+    match  = re.fullmatch(pattern, value)
+    return bool(match)
+
+
+def validate_Platform_flight_index(value:str) ->bool:
+    pattern = r'^[0-9]+$'
+    match  = re.fullmatch(pattern, value)
+    return bool(match)

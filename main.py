@@ -1,108 +1,164 @@
 
-
-
-import threading
 import flet as ft
-from flet import Page, TextField, ElevatedButton, Row, Column
+from flet import Page, TextField, ElevatedButton, Row, Column,Text
 from datetime import datetime
-from drone_comm_system import open_socket, stop
-from input_Validation import validate_date, validate_int, validate_string
-
+from drone_comm_system import open_socket, stop,event
+from flet import colors as cl,icons
+from validation_manager import input_entered_and_valid_input
+from updatePage import disabled_input
+import sys
+import os
+import signal
+import time
 def main(page: Page):
-    page.title = "skyView"
-    page.window.width = 600
-    page.window.height = 600
+    
+    
+    
+    page.title = "Sky View"
+    page.window.width = 900
+    page.window.height = 700
     page.vertical_alignment = "center"
     page.horizontal_alignment = "center"
-
+    page.bgcolor = "#f0f4f8"
+    page.padding = 20
     is_details_entered = False
-    thread_01_status = threading.Event()
     is_processing = False 
+    page.bgcolor = cl.BLUE_GREY_900
 
-    route_id = TextField(label="Route id", width=200, height=60, fill_color='blue-light', max_length=20 , value="ggg")
-    flight_id = TextField(label="Flight id", width=200, height=60, fill_color='blue-light', max_length=20, value="ggg")
-    platform_id = TextField(label="Platform id", width=200, height=60, fill_color='blue-light', max_length=3 , value="245")
-    platform_name = TextField(label="Platform name", width=200, height=60, fill_color='blue-light', max_length=20, value="ggg")
-    date = ft.TextField(
-        label="Date",
-        value=datetime.now().strftime('%d-%m-%Y'),
-        width=200,
-        fill_color="blue-light"
+    title=Text("Drone Management Dashboard",size=30,weight="bold",color=cl.CYAN,text_align="center")
+    route_id = TextField(label="Route id",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=20,value='ffghghfsfh',hint_text="Only letters or numbers",color='black',text_align="center",border_radius=8)
+    Platform_flight_index = TextField(label="Platform flight index",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=3,value='123',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
+    platform_id = TextField(label="Platform id", width=250,bgcolor=cl.GREY_200, height=60, fill_color='blue-light', max_length=3,value='232',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
+    platform_name = TextField(label="Platform name",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light' ,max_length=3,value='SDA',hint_text="Only letters",color='black',text_align="center",border_radius=8)
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+
+   
+    
+    
+    
+    def handle_change(e):
+        date.text= e.control.value.strftime("%Y-%m-%d")
+        date.update()
+        
+    date_now=datetime.now()
+    date = ft.ElevatedButton(
+        "Pick Date",
+        icon=icons.CALENDAR_MONTH,
+        on_click=lambda e: page.open(
+            ft.DatePicker(
+                first_date=datetime(year=date_now.year, month=date_now.month, day=date_now.day),
+                last_date=datetime(year=date_now.year+15, month=date_now.month, day=date_now.day),
+                on_change=handle_change
+            )
+        ),
+        bgcolor='#00ACC1',
+        width=250,
+        height=50
     )
+    
+    output=ft.Text(value="",color='red')
+    
+    status_indicator_red = ft.Container(width=20,height=20,bgcolor="red",border_radius=25,alignment=ft.alignment.center,visible=True)
+    status_indicator_yellow = ft.Container(width=20,height=20,bgcolor="yellow",border_radius=25,alignment=ft.alignment.center, visible=False)
+    status_indicator_green = ft.Container(width=20,height=20,bgcolor="green",border_radius=25,alignment=ft.alignment.center, visible=False)
+    
+    status_connection= ft.Text(value="",color="white")
+    cont_json_received= ft.Text(value="0",color="white")
+    explanation_text_cont_json_received = ft.Text(value="Count of received JSON data from the drone: ",color="white")
+    cont_send_json_to_cloud= ft.Text(value="0",color="white")
+    explanation_text_cont_send_json_to_cloud = ft.Text(value="Number of JSON sent to the cloud: ",color="white")
+    running_problems= ft.Text(value="",color="red")
+    explanation_running_problems = ft.Text(value="Error: ",color="red")
+    
 
-    submit_button = ElevatedButton(text="Submit", width=200)
-    start_stop_button = ElevatedButton(text="start", width=200, bgcolor="green", color="blue-light")
+    start_stop_button = ElevatedButton(text="start", width=200, bgcolor=cl.GREEN)
+
+    event_finish_to_collect_data = False
 
     def start_stop_handler(e):
-        nonlocal is_processing
-        if is_processing:
-            return
+        nonlocal event_finish_to_collect_data
+
         
-        is_processing = True
         try:
-            if thread_01_status.is_set():
-                print("stop")
-                start_stop_button.text = "start"
-                start_stop_button.bgcolor = "green"
+            if event.is_set():
+                output.value = ""
+                output.update()
+                event_finish_to_collect_data=True
+                print("Stopping process")
+                is_processing = False
+                disabled_input_on_start = False
+                disabled_input(disabled_input_on_start, route_id, Platform_flight_index, platform_id, platform_name,
+                            date, status_indicator_red, status_indicator_yellow, status_indicator_green)
+                start_stop_button.text = "Start"
+                start_stop_button.bgcolor = cl.GREEN
                 start_stop_button.update()
                 page.update()
-                thread_01_status.clear()
-                stop(thread_01_status)
+                stop()
             else:
-                print("start")
-                start_stop_button.text = "stop"
-                start_stop_button.bgcolor = "red"
+                if event_finish_to_collect_data:
+                    output.value = "The system is already running"
+                    output.color = "red"
+                    output.update()
+                    return
+                
+                print("Starting process")
+                
+                is_processing = True
+                disabled_input_on_stop = True
+                disabled_input(disabled_input_on_stop, route_id, Platform_flight_index, platform_id, platform_name, date,
+                            status_indicator_red, status_indicator_yellow, status_indicator_green)
+                start_stop_button.text = "Stop"
+                start_stop_button.bgcolor = cl.RED
                 start_stop_button.update()
                 page.update()
-                thread_01_status.set()
-                open_socket(thread_01_status, route_id.value, flight_id.value, 
-                          platform_id.value, platform_name.value, date.value)
-        finally:
-            is_processing = False
+                event.set() 
+                open_socket(event, route_id.value, Platform_flight_index.value,
+                            platform_id.value, platform_name.value, date.text, status_indicator_red,
+                            status_indicator_yellow, status_indicator_green, status_connection,
+                            cont_json_received, cont_send_json_to_cloud, running_problems)
+                event_finish_to_collect_data=False
+        except Exception as e:
+            pass
+ 
 
-    def switch_to_start_stop(e):
-        nonlocal is_details_entered
-
-        route_id_value = route_id.value
-        flight_id_value = flight_id.value
-        platform_id_value = platform_id.value
-        platform_name_value = platform_name.value
-        date_value = date.value
-
-        if (not validate_string(route_id_value) or
-            not validate_string(flight_id_value) or
-            not validate_int(platform_id_value) or
-            not validate_string(platform_name_value) or
-            not validate_date(date_value)):
-            page.add(ft.Text("Please enter all fields.", color="red"))
-            page.update()
-            return
-
-        is_details_entered = True
-        update_view()
 
     def update_view():
         page.controls.clear()
-        if not is_details_entered:
-            page.add(
-                Row(
-                    controls=[Column([route_id, flight_id, platform_id, platform_name, date, submit_button])],
-                    alignment=ft.MainAxisAlignment.CENTER
-                )
-            )
-        else:
-            page.add(
-                Row(
-                    controls=[start_stop_button],
-                    alignment=ft.MainAxisAlignment.CENTER
-                )
-            )
+
+        page.add(
+            Row(controls=[title],alignment=ft.MainAxisAlignment.CENTER),
+            Row(controls=[platform_name, platform_id,date],alignment=ft.MainAxisAlignment.CENTER),
+            Row(controls=[Platform_flight_index,route_id],alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Column(controls=[start_stop_button,status_connection],alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Row(controls=[status_indicator_red,status_indicator_yellow,status_indicator_green],alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Row(controls=[explanation_text_cont_json_received,cont_json_received,output],alignment=ft.MainAxisAlignment.START,spacing=20),
+            Row(controls=[explanation_text_cont_send_json_to_cloud,cont_send_json_to_cloud],alignment=ft.MainAxisAlignment.START,spacing=20),
+            Row(controls=[explanation_running_problems,running_problems],alignment=ft.MainAxisAlignment.START,spacing=20)
+        )
+
+        
         page.update()
 
-    submit_button.on_click = switch_to_start_stop
+    
     start_stop_button.on_click = start_stop_handler
 
     update_view()
+
+    
+    def handle_window_event(e: ft.ControlEvent):
+        print("called")
+        if e.data == "close":
+            page.window.prevent_close=False
+            page.window.close()
+            try:
+                time.sleep(2)
+                sys.exit(0)
+            except SystemExit as e:
+                os.kill(os.getpid(),signal.SIGTERM)
+
+
+    page.window.prevent_close=True
+    page.window.on_event=handle_window_event
 
 if __name__ == "__main__":
     ft.app(target=main)
