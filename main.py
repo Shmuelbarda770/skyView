@@ -10,10 +10,8 @@ import sys
 import os
 import signal
 import time
+
 def main(page: Page):
-    
-    
-    
     page.title = "Sky View"
     page.window.width = 900
     page.window.height = 700
@@ -56,7 +54,7 @@ def main(page: Page):
     )
     
     output=ft.Text(value="",color='red')
-    
+    ## TODO: add new button to stop
     status_indicator_red = ft.Container(width=20,height=20,bgcolor="red",border_radius=25,alignment=ft.alignment.center,visible=True)
     status_indicator_yellow = ft.Container(width=20,height=20,bgcolor="yellow",border_radius=25,alignment=ft.alignment.center, visible=False)
     status_indicator_green = ft.Container(width=20,height=20,bgcolor="green",border_radius=25,alignment=ft.alignment.center, visible=False)
@@ -72,28 +70,28 @@ def main(page: Page):
 
     start_stop_button = ElevatedButton(text="start", width=200, bgcolor=cl.GREEN)
 
-    event_finish_to_collect_data = False
+    event_finish_to_collect_data = False ## TODO: look at ritzratz how to work with global variables
 
-    def start_stop_handler(e):
+    def start_stop_handler(e): ##TODO: take out this function. functions should be around 50 lines
         nonlocal event_finish_to_collect_data
 
-        if not input_entered_and_valid_input(is_details_entered,route_id,Platform_flight_index,platform_id,platform_name,date,output,page):
+        if not input_entered_and_valid_input(is_details_entered,route_id,Platform_flight_index,platform_id,platform_name,date,output,page): ## TODO: this function check if the input is valid
             return
 
-        
-        try:
-            if event.is_set():
-                output.value = ""
-                output.update()
+        try: ## TODO: can be separated into two different functions 
+            if event.is_set(): ## TODO: event name is unclear
+                ## TODO: put this code inside a function
+                output.value = "" ## TODO: output what ?
+                output.update() ## TODO: not needed
                 event_finish_to_collect_data=True
-                disabled_input_on_start = False
+                disabled_input_on_start = False ## TODO: name is not clear should be in the global files
                 disabled_input(disabled_input_on_start, route_id, Platform_flight_index, platform_id, platform_name,
-                            date, status_indicator_red, status_indicator_yellow, status_indicator_green)
+                            date, status_indicator_red, status_indicator_yellow, status_indicator_green) ## TODO: name should be more clear
                 start_stop_button.text = "Start"
                 start_stop_button.bgcolor = cl.GREEN
-                start_stop_button.update()
+                start_stop_button.update()  ## TODO: not needed
                 page.update()
-                stop()
+                stop() ## TODO: not indicative 
             else:
                 if event_finish_to_collect_data:
                     output.value = "The system is already running"
@@ -112,14 +110,14 @@ def main(page: Page):
                 open_socket(event, route_id.value, Platform_flight_index.value,
                             platform_id.value, platform_name.value, date.text, status_indicator_red,
                             status_indicator_yellow, status_indicator_green, status_connection,
-                            cont_json_received, cont_send_json_to_cloud, running_problems)
+                            cont_json_received, cont_send_json_to_cloud, running_problems) ## TODO: function name is not clear
                 event_finish_to_collect_data=False
         except Exception as e:
             pass
  
 
 
-    def update_view():
+    def update_view(): ## TODO: this function should be called build view.
         page.controls.clear()
 
         page.add(
@@ -157,4 +155,6 @@ def main(page: Page):
     page.window.on_event=handle_window_event
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.app(target=main) ## TODO: septate the gui from this file need to be under folder gui
+    ## the structure should contain src folder, inside gui , business logic, utils ....
+    ## requirements, spec, readme ... (look at ritzratz)

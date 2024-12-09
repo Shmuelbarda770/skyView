@@ -182,8 +182,8 @@ def open_socket(event: threading.Event, route_id, Platform_flight_index,
                             platform_id, platform_name, date, status_indicator_red,
                             status_indicator_yellow, status_indicator_green, status_connection, 
                             cont_json_received, cont_send_json_to_cloud,running_problems):
-    event.clear()
-    event.set()
+    event.clear() ## TODO: not needed
+    event.set() ## TODO: not needed
     
     try:
         tread1=threading.Thread(target= collect_data,args=( event, route_id, Platform_flight_index, 
