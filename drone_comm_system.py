@@ -208,7 +208,6 @@ def open_socket(event: threading.Event, route_id, Platform_flight_index,
 
 
 def stop():
-
     logger.info("Stopping threads.")
     event.clear()
     while not data_queue.empty():
@@ -225,24 +224,32 @@ def upData_json(new_json,route_id, platform_name, platform_id, date,Platform_fli
     conversion_date_for_flight_ID= datetime.datetime.strptime(date, '%Y-%m-%d').strftime('%Y%m%d')
     if validate_data_conversion:
         data={
-            'azimuth': data_conversion['azimuth'],
-            'height': data_conversion['height'],
-            'time_of_last_known_location': data_conversion['timeOfLastKnownLocation'],
-            'coordinate': data_conversion['coordinate'],
-            'route_id': route_id,
-            'platform_flight_index': Platform_flight_index,
-            'platform_id': int(platform_id),
-            'platform_name': platform_name,
-            'date': date,
-            'message_id':id_for_message_id,
-            'flight_id':f"{platform_name}{platform_id}_{conversion_date_for_flight_ID}_{Platform_flight_index}",
-            'roll':0.0,
-            'pitch':0.0
+            "AZIMUTH":format_decimal(data_conversion['azimuth'],2) ,
+            "COORDINATE": {"latitude":format_decimal(data_conversion['coordinate'][0],7),"longitude":format_decimal(data_conversion['coordinate'][1],7)},
+            "DATE": date,
+            "Platform_Flight_Index": int(Platform_flight_index),
+            "FLIGHT_ID":f"{platform_name}{platform_id}_{conversion_date_for_flight_ID}_{format_number_FLIGHT_ID((int(Platform_flight_index)))}",
+            "HEIGHT":format_decimal (data_conversion['height'],1),
+            "MESSAGEID":id_for_message_id,
+            "PITCH":0.00,
+            "PLATFORMID": int(platform_id),
+            "PLATFORMNAME": platform_name,
+            "ROLL":0.00,
+            "ROUTEID": route_id,
+            "TIMEOFLASTKNOWNLOCATION": data_conversion['timeOfLastKnownLocation']            
         }
         return data
     else:
         pass
 
+
+def format_decimal (numberToFix,lenNum):
+    return round(numberToFix, lenNum)
+
+
+
+def format_number_FLIGHT_ID(num):
+    return str(num).zfill(4)
 
 def clear_queue():
     while not data_queue.empty():

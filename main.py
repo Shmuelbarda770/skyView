@@ -22,14 +22,13 @@ def main(page: Page):
     page.bgcolor = "#f0f4f8"
     page.padding = 20
     is_details_entered = False
-    is_processing = False 
     page.bgcolor = cl.BLUE_GREY_900
 
     title=Text("Drone Management Dashboard",size=30,weight="bold",color=cl.CYAN,text_align="center")
-    route_id = TextField(label="Route id",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=20,value='ffghghfsfh',hint_text="Only letters or numbers",color='black',text_align="center",border_radius=8)
-    Platform_flight_index = TextField(label="Platform flight index",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=3,value='123',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
-    platform_id = TextField(label="Platform id", width=250,bgcolor=cl.GREY_200, height=60, fill_color='blue-light', max_length=3,value='232',hint_text="Only numbers",color='black',text_align="center",border_radius=8)
-    platform_name = TextField(label="Platform name",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light' ,max_length=3,value='SDA',hint_text="Only letters",color='black',text_align="center",border_radius=8)
+    route_id = TextField(label="Route id",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=20,value='flight_12',hint_text="Letters or numbers",color='black',text_align="center",border_radius=8)
+    Platform_flight_index = TextField(label="Platform flight index",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light', max_length=4,value='1234',hint_text="Numbers only",color='black',text_align="center",border_radius=8)
+    platform_id = TextField(label="Platform id", width=250,bgcolor=cl.GREY_200, height=60, fill_color='blue-light', max_length=3,value="123",hint_text="Numbers only",color='black',text_align="center",border_radius=8)
+    platform_name = TextField(label="Platform name",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light' ,max_length=3,value="ABC",hint_text="Letters only",color='black',text_align="center",border_radius=8)
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
    
@@ -78,14 +77,15 @@ def main(page: Page):
     def start_stop_handler(e):
         nonlocal event_finish_to_collect_data
 
+        if not input_entered_and_valid_input(is_details_entered,route_id,Platform_flight_index,platform_id,platform_name,date,output,page):
+            return
+
         
         try:
             if event.is_set():
                 output.value = ""
                 output.update()
                 event_finish_to_collect_data=True
-                print("Stopping process")
-                is_processing = False
                 disabled_input_on_start = False
                 disabled_input(disabled_input_on_start, route_id, Platform_flight_index, platform_id, platform_name,
                             date, status_indicator_red, status_indicator_yellow, status_indicator_green)
@@ -101,9 +101,6 @@ def main(page: Page):
                     output.update()
                     return
                 
-                print("Starting process")
-                
-                is_processing = True
                 disabled_input_on_stop = True
                 disabled_input(disabled_input_on_stop, route_id, Platform_flight_index, platform_id, platform_name, date,
                             status_indicator_red, status_indicator_yellow, status_indicator_green)

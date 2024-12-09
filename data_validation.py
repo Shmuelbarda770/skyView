@@ -1,7 +1,7 @@
 
 
 def validate_timeOfLastKnownLocation(value) -> bool:
-    if(len(value)<10 or len(value)>30):
+    if(len(value)<20 or len(value)>30):
         return False
    
     return True
@@ -13,10 +13,10 @@ def validate_coordinate(value: object) -> bool:
     
     latitude, longitude = value
     
-    if latitude < 0 or latitude > 50:
+    if latitude < 10 or latitude > 50:
         return False
     
-    if longitude < 0 or longitude > 50:
+    if longitude < 10 or longitude > 50:
         return False
     
     return True

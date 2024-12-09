@@ -28,7 +28,7 @@ def input_entered_and_valid_input(is_details_entered,route_id,Platform_flight_in
             not validate_Platform_flight_index(Platform_flight_index_value) or
             not validate_date(date_value)):
             
-            output.value = "All inputs required"
+            output.value = "inputs required"
             page.update()
             return False  
         

@@ -7,7 +7,7 @@ def validate_route_id(value:str) ->bool:
 
 
 def validate_platform_name(value:str) ->bool:
-    pattern = r'^[A-Za-z]{3}$'
+    pattern = r'^[A-Z]{3}$'
     match  = re.fullmatch(pattern, value)
     return bool(match)
 
@@ -25,6 +25,6 @@ def validate_date(value:str) ->bool:
 
 
 def validate_Platform_flight_index(value:str) ->bool:
-    pattern = r'^[0-9]+$'
+    pattern = r'^[0-9]{1,4}$'
     match  = re.fullmatch(pattern, value)
     return bool(match)

@@ -5,7 +5,7 @@
 #     def _init_(self,page: Page):
 #         self.page = page
 #         self.is_details_entered = False
-#         self.is_processing = False
+#         self.event_finish_to_collect_data = False
 
 
 
@@ -17,7 +17,6 @@
 #         self.page.horizontal_alignment = "center"
 #         self.page.bgcolor = cl.BLUE_GREY_900
 #         self.page.padding = 20
-#         self.page.bgcolor = cl.BLUE_GREY_900
 
 
 
