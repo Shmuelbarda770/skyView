@@ -146,7 +146,6 @@ def main(page: Page):
 
     
     def handle_window_event(e: ft.ControlEvent):
-        print("called")
         if e.data == "close":
             page.window.prevent_close=False
             page.window.close()
