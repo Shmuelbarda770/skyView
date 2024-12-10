@@ -113,7 +113,6 @@ def collect_data(event, route_id, Platform_flight_index,
             connected = False
             while not connected and event.is_set():
                 try:
-                    time.sleep(2)
                     server_socket.bind((IP, PORT))
                     
                     logger.info(f"Successfully bound to IP and port, the ip is:{IP} and port : {PORT}")
@@ -245,7 +244,6 @@ def upData_json(new_json,route_id, platform_name, platform_id, date,Platform_fli
 
 def format_decimal (numberToFix,lenNum):
     return round(numberToFix, lenNum)
-
 
 
 def format_number_FLIGHT_ID(num):

@@ -29,7 +29,7 @@ def main(page: Page):
     platform_name = TextField(label="Platform name",bgcolor=cl.GREY_200, width=250, height=60, fill_color='blue-light' ,max_length=3,value="ABC",hint_text="Letters only",color='black',text_align="center",border_radius=8)
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-   
+
     
     
     
