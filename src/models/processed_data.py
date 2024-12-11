@@ -3,6 +3,7 @@ import json
 from src.models.incoming_data import IncomingData
 import datetime
 
+
 class ProcessedData(BaseModel):
     AZIMUTH: float
     COORDINATE: dict

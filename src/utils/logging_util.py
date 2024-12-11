@@ -66,8 +66,9 @@ class LoggerManager:
             cls.listener.start()
 
         except Exception as e:
-            print(f"Error initializing logger: {e}")
-            raise
+            # f"Error initializing logger: {e}"
+            pass
+            
 
     def get_logger(self):
         return self.logger
