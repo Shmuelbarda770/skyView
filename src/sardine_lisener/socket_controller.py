@@ -100,8 +100,6 @@ class SocketController:
                 self.show_running_error("Failed to close the socket")
 
 
-    import socket
-
     def bind_socket(self):
         
         try:

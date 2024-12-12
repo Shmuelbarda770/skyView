@@ -6,7 +6,7 @@ from queue import Queue
 
 class SocketThreadManager:
     def __init__(self, route_id,platform_flight_index,platform_id, platform_name,date,
-                 status_indicator_unconnected,status_indicator_connected_and_receives_data,status_indicator_send_to_cloud ,status_connection:,
+                 status_indicator_unconnected,status_indicator_connected_and_receives_data,status_indicator_send_to_cloud ,status_connection,
                  received_json_counter,sent_json_counter,show_running_error,page,update_traffic_light_status,
                  increment_received_json_counter,increment_send_json_counter):
         
