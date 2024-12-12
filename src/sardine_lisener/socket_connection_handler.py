@@ -68,4 +68,4 @@ class SocketThreadManager:
         self.connection_status_flag.clear()
         while not self.data_queue.empty():
             self.data_queue.get()
-        self.logger.info("Threads stopped.")
+        self.logger.info("Threads stopped")
