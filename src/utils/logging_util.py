@@ -34,7 +34,6 @@ class LoggerManager:
     def _initialize_logger(cls):
         try:
             config_path = cls._find_config()
-            print(config_path)
             config = ConfigParser()
             config.read(config_path)
 

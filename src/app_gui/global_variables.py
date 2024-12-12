@@ -7,19 +7,22 @@ import sys
 from pathlib import Path
 
 
+
+def find_config():
+        if hasattr(sys, "_MEIPASS"):
+            PROJ_ROOT = Path(getattr(sys, "_MEIPASS"))
+        else:
+            PROJ_ROOT = Path(r'C:\Users\A\skyView')
+            
+        return PROJ_ROOT / 'config.ini'
+
+
 global_variables_state:dict={
-    "logger":LoggerManager.get_logger,
+    "logger":LoggerManager(),
     "data_queue" : queue.Queue(),
     "connection_status_flag":threading.Event(),
     "config": configparser.ConfigParser()
 }
 
 
-if hasattr(sys, "_MEIPASS"):
-    PROJ_ROOT = Path(getattr(sys, "_MEIPASS"))
-else:
-    PROJ_ROOT = Path(__file__).resolve().parent
-
-config_path =  Path(r'C:\Users\A\skyView')
-
-global_variables_state["config"].read(config_path)
+global_variables_state["config"].read(find_config())

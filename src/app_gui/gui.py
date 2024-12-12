@@ -6,7 +6,11 @@ from flet import colors as cl, icons
 from src.app_gui.style_util import base_fields_style, status_indicator_style
 from src.app_gui.global_variables import global_variables_state
 from src.app_gui.field_validator import FieldValidator
-# from sardine_lisener.s
+from src.sardine_lisener.socket_connection_handler import SocketThreadManager
+import sys
+import time
+import os
+import signal
 
 class GUI:
     def __init__(self, page: Page):
@@ -16,6 +20,12 @@ class GUI:
         self.initialize_page()
         self.create_elements()
         self.build_view()
+        self.SocketThreadManager=SocketThreadManager(self.route_id, self.platform_flight_index, 
+                                                     self.platform_id, self.platform_name, self.date,
+                 self.status_indicator_unconnected,self.status_indicator_connected_and_receives_data,
+                 self.status_indicator_send_to_cloud ,self.status_connection,
+                 self.received_json_counter,self.sent_json_counter,self.show_running_error,
+                 self.increment_received_json_counter,self.increment_send_json_counter,self.update_traffic_light_status,self.page)
        
 
     def initialize_page(self):
@@ -74,15 +84,9 @@ class GUI:
         self.stop_button = ElevatedButton(text="Stop", width=200, bgcolor=cl.RED,visible=False)
         self.stop_button.on_click = self.handle_stop_click
 
-        self.status_indicator_unconnected = ft.Container(
-            **status_indicator_style, bgcolor="red", visible=True
-        )
-        self.status_indicator_connected_and_receives_data = ft.Container(
-            **status_indicator_style, bgcolor="yellow", visible=False
-        )
-        self.status_indicator_send_to_cloud = ft.Container(
-            **status_indicator_style, bgcolor="green",visible=False
-        )
+        self.status_indicator_unconnected = ft.Container(**status_indicator_style, bgcolor="red", visible=True)
+        self.status_indicator_connected_and_receives_data = ft.Container(**status_indicator_style, bgcolor="yellow", visible=False)
+        self.status_indicator_send_to_cloud = ft.Container(**status_indicator_style, bgcolor="green",visible=False)
 
         self.status_connection = Text(value="", color="white")
 
@@ -102,14 +106,15 @@ class GUI:
         )
 
 
-        self.cont_json_received= ft.Text(value="0",color="white")
-        self.explanation_text_cont_json_received = ft.Text(value="Count of received JSON data from the drone: ",color="white")
-        self.cont_send_json_to_cloud= ft.Text(value="0",color="white")
-        self.explanation_text_cont_send_json_to_cloud = ft.Text(value="Number of JSON sent to the cloud: ",color="white")
+        self.received_json_counter = ft.Text(value="0",color="white")
+        self.explanation_text_received_json_counter = ft.Text(value="Count of received JSON data from the drone: ",color="white")
+        self.sent_json_counter = ft.Text(value="0",color="white")
+        self.explanation_text_sent_json_counter  = ft.Text(value="Number of JSON sent to the cloud: ",color="white")
         self.show_running_error= ft.Text(value="",color="red")
         self.explanation_show_running_error = ft.Text(value="Error: ",color="red")
 
-
+        self.page.window.prevent_close=True
+        self.page.window.on_event=self.handle_window_event
 
 
 
@@ -120,80 +125,39 @@ class GUI:
         
     
     def handle_start_click(self,e):
-        self.start_button.visible=True
-        self.stop_button.visible=False
+        
 
         if not FieldValidator.validate_all_field(
                                             self.route_id,
                                             self.platform_flight_index,
                                             self.platform_id,
                                             self.platform_name,
-                                            self.date,
-                                            self.page):
+                                            self.date
+                                            ):
+            self.show_error_in_screen("Some fields are missing. Please fill in all fields")
             return
-
-            
-        self.set_input_disabled_status()
         
-
-
-
-    def handle_stop_click(self):
+        self.connection_status_flag.set()
+        self.SocketThreadManager.open_socket_running()
         self.start_button.visible=False
         self.stop_button.visible=True
-
-
-
-
-
-    # def start_stop_handler(self, e):
-        
-    
+        self.show_error_in_screen("")
+        self.set_input_fields_disabled_status()
+        self.page.update()
+        self.SocketThreadManager.open_socket_running()
         
 
-        # try:
 
-        # try: ## TODO: can be separated into two different functions 
-        #     if event.is_set(): ## TODO: event name is unclear
-        #         ## TODO: put this code inside a function
-        #         output.value = "" ## TODO: output what ?
-        #         output.update() ## TODO: not needed
-        #         event_finish_to_collect_data=True
-        #         disabled_input_on_start = False ## TODO: name is not clear should be in the global files
-        #         disabled_input(disabled_input_on_start, route_id, Platform_flight_index, platform_id, platform_name,
-        #                     date, status_indicator_red, status_indicator_yellow, status_indicator_green) ## TODO: name should be more clear
-        #         start_stop_button.text = "Start"
-        #         start_stop_button.bgcolor = cl.GREEN
-        #         start_stop_button.update()  ## TODO: not needed
-        #         page.update()
-        #         stop() ## TODO: not indicative 
-        #     else:
-        #         if event_finish_to_collect_data:
-        #             output.value = "The system is already running"
-        #             output.color = "red"
-        #             output.update()
-        #             return
-                
-        #         disabled_input_on_stop = True
-        #         disabled_input(disabled_input_on_stop, route_id, Platform_flight_index, platform_id, platform_name, date,
-        #                     status_indicator_red, status_indicator_yellow, status_indicator_green)
-        #         start_stop_button.text = "Stop"
-        #         start_stop_button.bgcolor = cl.RED
-        #         start_stop_button.update()
-        #         page.update()
-        #         event.set() 
-        #         open_socket(event, route_id.value, Platform_flight_index.value,
-        #                     platform_id.value, platform_name.value, date.text, status_indicator_red,
-        #                     status_indicator_yellow, status_indicator_green, status_connection,
-        #                     cont_json_received, cont_send_json_to_cloud, running_problems) ## TODO: function name is not clear
-        #         event_finish_to_collect_data=False
-        # except Exception as e:
-        #     pass
 
-        # start_button,stop_button
-            
+    def handle_stop_click(self,e):
+        self.SocketThreadManager.stop_socket_running()
+        self.start_button.visible=True
+        self.stop_button.visible=False
+        self.page.update()
+        
 
-    def set_input_disabled_status(self):
+
+    def set_input_fields_disabled_status(self):
 
         self.route_id.disabled = True
         self.platform_flight_index.disabled = True
@@ -221,6 +185,45 @@ class GUI:
         self.status_indicator_send_to_cloud.visible = False
 
 
+    def show_error_in_screen(self,problem):
+        self.show_running_error.value=""
+        self.show_running_error.value=problem
+        self.show_running_error.update()
+
+    def increment_received_json_counter(self):
+        new_value = int(self.received_json_counter.value) + 1
+        self.received_json_counter.value = str(new_value)
+        self.received_json_counter.update()
+
+
+    def increment_send_json_counter(self):
+        new_value = int(self.sent_json_counter.value) + 1
+        self.sent_json_counter.value = str(new_value)
+        self.sent_json_counter.update()
+
+
+    def update_traffic_light_status(self,status_indicator):
+        self.status_indicator_unconnected = False
+        self.status_indicator_connected_and_receives_data = False
+        self.status_indicator_send_to_cloud = False
+
+
+        if status_indicator == "red":
+            self.status_indicator_unconnected.visible = True
+        elif status_indicator == "yellow":
+            self.status_indicator_connected_and_receives_data.visible = True
+        elif status_indicator == "green":
+            self.status_indicator_send_to_cloud.visible = True
+
+        
+        self.status_indicator_unconnected.update()
+        self.status_indicator_connected_and_receives_data.update()
+        self.status_indicator_send_to_cloud.update()
+
+    
+    def update_connection_status_message(self, status_message):
+        self.status_connection.value = status_message
+        self.status_connection.update()
 
 
 
@@ -238,12 +241,25 @@ class GUI:
                     self.status_indicator_send_to_cloud,
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,spacing=20),
+            Row([self.explanation_text_received_json_counter, self.received_json_counter],alignment=ft.MainAxisAlignment.CENTER,spacing=20,),
+            Row([self.explanation_text_sent_json_counter, self.sent_json_counter],alignment=ft.MainAxisAlignment.CENTER,spacing=20,),
+            Row([self.explanation_show_running_error, self.show_running_error],alignment=ft.MainAxisAlignment.CENTER,spacing=20,)
         )
 
         self.page.update()
 
+    def handle_window_event(self,e: ft.ControlEvent):
+        if e.data == "close":
+            self.page.window.prevent_close=False
+            self.page.window.close()
+            try:
+                time.sleep(2)
+                sys.exit(0)
+            except SystemExit as e:
+                os.kill(os.getpid(),signal.SIGTERM)
 
 
+   
 
 
 

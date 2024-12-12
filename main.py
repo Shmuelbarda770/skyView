@@ -164,8 +164,7 @@ from flet import Page
 from src.app_gui.gui import GUI
 
 if __name__ == "__main__":
-    def main(page: Page):
+   def main(page: Page):
        GUI(page)
 
-
-    ft.app(target=main)
+   ft.app(target=main)

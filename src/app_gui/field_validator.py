@@ -1,5 +1,6 @@
 import re
 
+
 class FieldValidator:
 
     @staticmethod
@@ -34,26 +35,20 @@ class FieldValidator:
 
 
     @staticmethod
-    def validate_all_field(is_details_entered,route_id,Platform_flight_index,platform_id,platform_name,date,output,page):
-
+    def validate_all_field(route_id,Platform_flight_index,platform_id,platform_name,date):
         route_id_value = route_id.value
         platform_flight_index_value = Platform_flight_index.value
         platform_id_value = platform_id.value
         platform_name_value = platform_name.value
         date_value = date.text
 
-        
+
         if (not FieldValidator._validate_route_id(route_id_value) or
             not FieldValidator._validate_platform_name(platform_name_value) or
             not FieldValidator._validate_platform_id(platform_id_value) or
             not FieldValidator._validate_platform_flight_index(platform_flight_index_value) or
             not FieldValidator._validate_date(date_value)):
             
-            output.value = "inputs required"
-            page.update()
             return False  
         
-        
-        is_details_entered = True
-        output.value = ""
         return True

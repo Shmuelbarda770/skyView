@@ -40,6 +40,9 @@ def show_error_in_screen(running_problems,problem):
     running_problems.update()
 
 
+    
+
+
 def disabled_input(status_disabled,route_id,Platform_flight_index,platform_id,
                    platform_name,date,status_indicator_red,status_indicator_yellow,status_indicator_green):
     
