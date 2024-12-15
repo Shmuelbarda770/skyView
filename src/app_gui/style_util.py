@@ -1,6 +1,6 @@
 import flet as ft
 
-base_fields_style : dict = {
+base_fields_style: dict = {
     "width": 250,
     "bgcolor": ft.colors.GREY_200,
     "height": 60,
@@ -9,7 +9,7 @@ base_fields_style : dict = {
     "border_radius": ft.border_radius.all(8),
 }
 
-status_indicator_style: dict={
+status_indicator_style: dict = {
     "width":20,
     "height":20,
     "border_radius":25,

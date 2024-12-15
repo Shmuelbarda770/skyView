@@ -1,0 +1,61 @@
+import threading
+from src.sardine_lisener.socket_controller import SocketController
+from src.GCP_publisher.cloud_data_sender import CloudDataSender
+from src.app_gui.global_variables import global_variables_state
+from queue import Queue
+
+class SocketThreadManager:
+    def __init__(self, route_id,platform_flight_index,platform_id, platform_name, date,
+                 update_connection_status_message,
+                 show_error_in_screen,update_traffic_light_status,
+                 increment_received_json_counter,increment_send_json_counter):
+        
+        self.connection_status_flag=global_variables_state["connection_status_flag"]
+        self.data_queue:Queue=global_variables_state["data_queue"]
+        self.logger=global_variables_state["logger"].get_logger()
+        self.increment_received_json_counter=increment_received_json_counter
+        self.increment_send_json_counter=increment_send_json_counter
+        self.route_id = route_id
+        self.platform_flight_index = platform_flight_index
+        self.platform_id = platform_id
+        self.platform_name = platform_name
+        self.date = date
+        self.update_connection_status_message = update_connection_status_message
+        self.show_error_in_screen = show_error_in_screen
+        self.update_traffic_light_status=update_traffic_light_status
+        
+
+
+    def open_socket_running(self):
+        try:
+            socket_manager :SocketController= SocketController(self.route_id, self.platform_flight_index, self.platform_id,
+                                          self.platform_name, self.date,
+                                          self.update_connection_status_message,
+                                          self.show_error_in_screen,self.update_traffic_light_status,
+                                          self.increment_received_json_counter)
+            cloud_data_sender:CloudDataSender=CloudDataSender(self.show_error_in_screen,
+                                              self.update_traffic_light_status,
+                                              self.increment_send_json_counter)
+            
+            tread_socket_manager: threading.Thread = threading.Thread(target=socket_manager.run, daemon=True)
+            tread_cloud_data_sender: threading.Thread =  threading.Thread(target=cloud_data_sender.send_data_to_cloud, daemon=True)
+            
+            tread_socket_manager.start()
+            tread_cloud_data_sender.start()
+
+            tread_socket_manager.join()
+            tread_cloud_data_sender.join()
+
+        except Exception as e:
+            self.logger.error(f"Error in thread: {e}")
+        finally:
+            self.logger.info("Thread shut down")
+            print(f"Active threads: {len(threading.enumerate())}")
+
+
+    def stop_socket_running(self):
+        self.logger.info("Stopping threads.")
+        self.connection_status_flag.clear()
+        while not self.data_queue.empty():
+            self.data_queue.get()
+        self.logger.info("Threads stopped.")

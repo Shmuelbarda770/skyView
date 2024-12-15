@@ -1,11 +1,10 @@
-
-from src.utils.logging_util import LoggerManager
 import queue
 import threading
 import configparser
 import sys
 from pathlib import Path
 
+from src.utils.logging_util import LoggerManager
 
 
 def find_config():
@@ -17,7 +16,7 @@ def find_config():
         return PROJ_ROOT / 'config.ini'
 
 
-global_variables_state:dict={
+global_variables_state: dict = {
     "logger":LoggerManager(),
     "data_queue" : queue.Queue(),
     "connection_status_flag":threading.Event(),
