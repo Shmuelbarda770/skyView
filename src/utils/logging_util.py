@@ -1,12 +1,13 @@
-
-import logging
-from logging.handlers import TimedRotatingFileHandler, QueueHandler, QueueListener
-import queue
-from configparser import ConfigParser
-from threading import Lock 
 import sys
+import logging
+import queue
+from threading import Lock
 from pathlib import Path
+from configparser import ConfigParser
 
+from logging.handlers import TimedRotatingFileHandler, QueueHandler, QueueListener
+
+##2.TODO: make sure that the log is cyclic and limited in size
 class LoggerManager:
     _instance = None
     _lock = Lock()

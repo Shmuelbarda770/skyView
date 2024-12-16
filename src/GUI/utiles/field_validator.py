@@ -1,6 +1,5 @@
 import re
 
-
 class FieldValidator:
 
     @staticmethod
@@ -33,7 +32,7 @@ class FieldValidator:
         match: bool = bool(re.fullmatch(pattern, value))
         return match
 
-
+##2.TODO: Add type hints
     @staticmethod
     def validate_all_field(route_id, Platform_flight_index, platform_id, platform_name, date)-> bool:
         route_id_value = route_id.value
