@@ -1,60 +1,51 @@
-
 import socket
 import json
 import logging
 import datetime
+import threading
+import configparser
+from queue import Queue
+from typing import Dict
+from json.decoder import JSONDecodeError
 
-from models.message_id_generator import MessageIDGenerator
 from src.GUI.global_variables import global_variables_state
-from flight_data import FlightData
+from src.models.flight_data import FlightData
 
 
 class SardineConsumer:
-    def __init__(self,route_id, platform_flight_index, platform_id,
-                      platform_name, date,update_connection_status_message, 
-                      show_error_in_screen,update_traffic_light_status, increment_received_json_counter,data_queue,is_sardine_connection_active_flag): 
+    def __init__(self,data_queue:Queue,is_sardine_connection_active_flag: threading.Event,**kwargs: Dict[str, any]): 
+         
+        for key, value in kwargs.items():
+            setattr(self, key, value) 
         
         self.logger:logging.Logger=global_variables_state["logger"].get_logger()
-        self.is_sardine_connection_active_flag= is_sardine_connection_active_flag
-        self.config = global_variables_state["config"]
-
-        self.route_id = route_id
-        self.platform_flight_index = platform_flight_index
-        self.platform_id = platform_id
-        self.platform_name = platform_name
-        self.date = date
-        
-
-        self.update_connection_status_message = update_connection_status_message
-        self.show_error_in_screen = show_error_in_screen
-        self.update_traffic_light_status = update_traffic_light_status
-        self.increment_received_json_counter = increment_received_json_counter
-        self.data_queue=data_queue
-
-
+        self.is_sardine_connection_active_flag: threading.Event= is_sardine_connection_active_flag
+        self.config: configparser.ConfigParser = global_variables_state["config"]
+        self.data_queue:Queue=data_queue
 
         self.server_socket = None
         self.IP:str = self.config.get('settings', 'IP')
         self.PORT:int = self.config.getint('settings', 'PORT')
         self.SIZE_BYTES_FROM_DRONE:int = self.config.getint('settings', 'SIZE_BYTES_FROM_DRONE')
-        self.id_for_MessageID=MessageIDGenerator()
 
 
-    def create_server_socket(self):
+    def create_server_socket(self)-> None:
         try:
             self.server_socket: socket.socket  = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.logger.info(f"creating server socket")
         except Exception as e:
             self.logger.error(f"Error creating server socket: {e}")
             self.show_error_in_screen("Error creating server socket")
 
-    def listen_for_connection(self):
+
+    def listen_for_connection(self)-> None:
         try:
+            self.server_socket.settimeout(5)
             SOCKET_LISTEN:int = self.config.getint('settings', 'SOCKET_LISTEN') or 1
             self.server_socket.listen(SOCKET_LISTEN)
-            self.server_socket.settimeout(5) ##2.TODO:  put it when the socket is created to make impact on the bind function 
             self.logger.info(f"Server is listening for connections with a timeout of {SOCKET_LISTEN}")
         except Exception as e:
-            self.logger.error("Error occurred while setting up the server socket")
+            self.logger.error(f"Error occurred while setting up the server socket: {e}")
             self.show_error_in_screen("Error occurred while setting up the server socket")
 
     
@@ -78,49 +69,56 @@ class SardineConsumer:
             self.show_error_in_screen("Error while waiting for drone connection")
             return False
 
+
     def receive_data(self, server):
         try:
             data: bytes = server.recv(self.SIZE_BYTES_FROM_DRONE)
+            print(data)
             if not data:
-                return None
+                return False
             self.logger.info("Data received from drone")
+            self.update_traffic_light_status("yellow")
             self.increment_received_json_counter()
             return data
         except socket.timeout:
             self.logger.warning("Timeout occurred while data received from drone.")
-            ##2.TODO: understand what happened when the connection
             return
         except socket.error as e:
             self.logger.error(f"Socket error occurred while receiving data: {str(e)}")
-            return 
+            return False
         except ConnectionResetError as e:
             self.logger.error(f"Connection reset error occurred while receiving data: {str(e)}")
+            self.show_error_in_screen("Connection reset error occurred while receiving data")
             return False
         except Exception as e:
-            self.show_error_in_screen("Error receiving data from drone")
+            self.show_error_in_screen(f"Error receiving data from drone: {e}")
             return False
-        
-    def process_data(self, data):
+
+   
+    def process_data(self, data)-> None:
         try:
-            json_str:json = data.decode('utf-8')
-            data:str=json.loads(json_str)
-            all_flight_data=self.process_flight_data(**data)
-            flight_data=FlightData(**all_flight_data)
+            json_str:str = data.decode('utf-8')
+            data:dict =json.loads(json_str)
+            all_flight_data:dict=self.process_flight_data(**data)
+            print(all_flight_data)
+            if all_flight_data:
+                flight_data=FlightData(**all_flight_data)
             self.add_json_to_queue(flight_data)
-            
+        except JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON format: {e}")
+        except ValueError as e:
+           self.logger.error(f"Validation error: {e}")  
         except Exception as e:
             self.logger.error(f"Error processing data: {e}")
-            self.show_error_in_screen("Error processing data")
 
 
-    def close_socket(self):
+    def close_socket(self)-> None:
         if self.server_socket:
             try:
                 self.server_socket.close()
                 self.logger.info("Socket closed")
             except Exception as e:
                 self.logger.error(f"Failed to close the socket: {e}")
-                self.show_error_in_screen("Failed to close the socket")
 
 
     def bind_socket(self):
@@ -138,13 +136,13 @@ class SardineConsumer:
         except Exception as e:
             self.logger.error(f"Waiting bind to IP and port, the ip is:{self.IP} and port : {self.PORT}")
             return
-        
-    def process_flight_data(self, azimuth: float,coordinate: list,height: float,
-                            timeOfLastKnownLocation: str,droneId: int):
 
+
+    def process_flight_data(self, azimuth: float,coordinate: list,height: float,
+                            timeOfLastKnownLocation: str,droneId: int) -> dict:
+        print(1)
         try:
             flight_id:str = self._generate_flight_id(self.platform_name, self.platform_id, self.date, self.platform_flight_index)
-            message_id:int = self.id_for_MessageID.get_next_id()
 
             processed_data :dict = {
                 "AZIMUTH": self.round_to_decimal_places(azimuth, 2),
@@ -156,9 +154,8 @@ class SardineConsumer:
                 "Platform_Flight_Index": int(self.platform_flight_index),
                 "FLIGHT_ID": flight_id,
                 "HEIGHT": self.round_to_decimal_places(height, 1),
-                "MESSAGEID": message_id,
                 "PITCH": 0.0,
-                "PLATFORMID": self.platform_id,
+                "PLATFORMID": int(self.platform_id),
                 "PLATFORMNAME": self.platform_name,
                 "ROLL": 0.0,
                 "ROUTEID": self.route_id,
@@ -181,28 +178,33 @@ class SardineConsumer:
         return f"{platform_name}{platform_id}_{conversion_date_for_flight_id}_{str(platform_flight_index).zfill(4)}"
 
 
-    def clear_queue(self):
+    def clear_queue(self)-> None:
         while not self.data_queue.empty():
             try:
                 self.data_queue.get_nowait()
+                self.logger.debug("Item successfully removed from queue.")
             except Exception as e:
                 self.logger.error(f"Failed to clear the queue: {e}")
             
-        self.logger.info("Queue has been cleared")
 
+    def add_json_to_queue(self,data_to_queue: dict)->None:
+        try:
+            if self.data_queue.full():
+                self.clear_queue() 
+                self.logger.info("Queue has been cleared successfully.")
+                            
+            self.data_queue.put(data_to_queue)
 
-    def add_json_to_queue(self,data_to_queue: dict):
-        if self.data_queue.full():
-            self.clear_queue()
-                        
-        self.data_queue.put(data_to_queue)
-        self.logger.info("Data added to queue")
+            self.logger.info("Data added to queue")
+        except Exception as e:
+            self.logger.error(f"Failed to add data to queue: {e}")
 
 
     def initialize_socket(self):
         self.create_server_socket()
-        self.listen_for_connection()
         self.bind_socket()
+        self.listen_for_connection()
+
 
 
     def sardine_connection_active_flag(self):
@@ -217,30 +219,16 @@ class SardineConsumer:
             while self.sardine_connection_active_flag():
 
                 server_time_out = self.accept_connection()
+
                 if server_time_out: continue
-                if not server_time_out: break
+                if server_time_out==False: break
 
                 
                 while self.sardine_connection_active_flag():
+
                     data = self.receive_data(self.server)
+
                     if data : self.process_data(data)
                     if data==False : break
 
         self.close_socket()
-
-
-
-    
-
-##2.TODO:
-# while thread:
-#     connection 
-#     bind
-#     listen
-
-#     while thread:
-#         accept -> continue on timeout, break in case of other error (look what error could be here)
-
-#         while thread:
-#             read -> break in case of none
-#             process -> continue

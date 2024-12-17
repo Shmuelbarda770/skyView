@@ -3,7 +3,6 @@ import threading
 import json
 import queue
 import logging
-import time
 import sys
 from pathlib import Path
 from json_sender import send

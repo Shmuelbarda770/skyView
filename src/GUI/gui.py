@@ -1,4 +1,3 @@
-
 import sys
 import time
 import os
@@ -9,8 +8,7 @@ from datetime import datetime
 from flet import colors as cl, icons
 
 from src.GUI.style_util import base_fields_style, status_indicator_style
-from src.GUI.global_variables import global_variables_state
-from src.GUI.utiles.field_validator import FieldValidator
+from src.GUI.utils.field_validator import FieldValidator
 from src.managers.sardine_manager import SardineManager
 
 
@@ -18,14 +16,11 @@ class GUI:
     def __init__(self, page: Page):
         self.page: Page = page
         self.date_now: datetime =datetime.now()
-        self.connection_status_flag=global_variables_state["connection_status_flag"]
         self.finish_to_stop_all_tread=False
         self.initialize_page()
         self.create_elements()
         self.build_view()
-        self.SardineManager = SardineManager(self.route_id, self.platform_flight_index, self.platform_id, self.platform_name, self.date,
-                                             self.update_connection_status_message,self.show_error_in_screen, self.increment_received_json_counter,
-                                             self.increment_send_json_counter, self.update_traffic_light_status,self.update_ui_when_send_data)
+        self.SardineManager =None
        
 
     def initialize_page(self):
@@ -38,6 +33,21 @@ class GUI:
         self.page.padding = 20
 
 
+    def sardine_config (self):
+        return  {
+            "route_id": self.route_id.value,
+            "platform_flight_index": self.platform_flight_index.value,
+            "platform_id": self.platform_id.value,
+            "platform_name": self.platform_name.value,
+            "date": self.date.text,
+            "update_connection_status_message": self.update_connection_status_message,
+            "show_error_in_screen": self.show_error_in_screen,
+            "increment_received_json_counter": self.increment_received_json_counter,
+            "increment_send_json_counter": self.increment_send_json_counter,
+            "update_traffic_light_status": self.update_traffic_light_status,
+            "update_ui_when_send_data": self.update_ui_when_send_data
+        }
+    
     def create_elements(self):
         self.title: Text = Text(
             "Drone Management Dashboard",
@@ -137,16 +147,20 @@ class GUI:
             self.show_error_in_screen("Some fields are missing. Please fill in all fields")
             return
         
+        self.SardineManager=SardineManager(**self.sardine_config())
+
         self.set_input_fields_disabled_status()
-        self.connection_status_flag.set()
+        
         self.SardineManager.start_listening_for_sardine()
-        self.when_tread_finish_to_run()        
+        self.when_tread_finish_to_run()
+        self.update_traffic_light_status("red")      
         
 
     def handle_stop_click(self,e: ft.ControlEvent):
         self.SardineManager.stop_listening_for_sardine()
         self.add_loading_and_set_page_disabled_when_tread_not_finish()
         self.enable_input_fields()
+        self.update_traffic_light_status("red")
 
 
     def add_loading_and_set_page_disabled_when_tread_not_finish(self):
@@ -251,9 +265,9 @@ class GUI:
 
 
     def update_traffic_light_status(self,status_indicator_color: str):
-        self.status_indicator_unconnected = False
-        self.status_indicator_connected_and_receives_data = False
-        self.status_indicator_send_to_cloud = False
+        self.status_indicator_unconnected.visible = False
+        self.status_indicator_connected_and_receives_data.visible = False
+        self.status_indicator_send_to_cloud.visible = False
 
 
         if status_indicator_color == "red":

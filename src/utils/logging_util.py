@@ -5,9 +5,10 @@ from threading import Lock
 from pathlib import Path
 from configparser import ConfigParser
 
-from logging.handlers import TimedRotatingFileHandler, QueueHandler, QueueListener
+from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
 
-##2.TODO: make sure that the log is cyclic and limited in size
+from src.utils.find_path_to_config import find_config
+
 class LoggerManager:
     _instance = None
     _lock = Lock()
@@ -21,35 +22,26 @@ class LoggerManager:
                 cls._instance._initialize_logger()
             return cls._instance
 
-    @classmethod
-    def _find_config(cls):
-        if hasattr(sys, "_MEIPASS"):
-            PROJ_ROOT = Path(getattr(sys, "_MEIPASS"))
-        else:
-            PROJ_ROOT = Path(r'C:\Users\A\skyView')
-            
 
-        return PROJ_ROOT / 'config.ini'
-    
     @classmethod
     def _initialize_logger(cls):
         try:
-            config_path = cls._find_config()
+            config_path = find_config()
             config = ConfigParser()
             config.read(config_path)
 
             log_file_name = config.get('logRotation', 'FILENAME')
-            log_rotation_time = config.get('logRotation', 'WHEN')
-            log_rotation_interval = config.getint('logRotation', 'INTERVAL')
+            max_log_file_size = config.getint('logRotation', 'MAX_LOG_FILE_SIZE')
             max_backup_files = config.getint('logRotation', 'BACKUP_COUNT')
 
-            rotating_handler = TimedRotatingFileHandler(
+
+            rotating_file_handler = RotatingFileHandler(
                 filename=log_file_name,
-                when=log_rotation_time,
-                interval=log_rotation_interval,
-                backupCount=max_backup_files
+                maxBytes=max_log_file_size,
+                backupCount=max_backup_files 
             )
-            rotating_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+            rotating_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
             stream_handler = logging.StreamHandler()
             stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -62,11 +54,10 @@ class LoggerManager:
             cls.logger.addHandler(queue_handler)
 
             
-            cls.listener = QueueListener(cls._log_queue, rotating_handler, stream_handler)
+            cls.listener = QueueListener(cls._log_queue, rotating_file_handler, stream_handler)
             cls.listener.start()
 
         except Exception as e:
-            # f"Error initializing logger: {e}"
             pass
             
 
