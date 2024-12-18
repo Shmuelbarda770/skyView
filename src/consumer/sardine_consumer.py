@@ -5,19 +5,19 @@ import datetime
 import threading
 import configparser
 from queue import Queue
-from typing import Dict
+from typing import Dict , List, Any, Union
 from json.decoder import JSONDecodeError
 
 from src.GUI.global_variables import global_variables_state
 from src.models.flight_data import FlightData
+from src.models.class_config.sardine_config import SardineConfig
 
 
 class SardineConsumer:
-    def __init__(self,data_queue:Queue,is_sardine_connection_active_flag: threading.Event,**kwargs: Dict[str, any]): 
+    def __init__(self,data_queue:Queue,is_sardine_connection_active_flag: threading.Event,sardine_config:SardineConfig): 
          
-        for key, value in kwargs.items():
-            setattr(self, key, value) 
-        
+        self.sardine_config:SardineConfig=sardine_config
+
         self.logger:logging.Logger=global_variables_state["logger"].get_logger()
         self.is_sardine_connection_active_flag: threading.Event= is_sardine_connection_active_flag
         self.config: configparser.ConfigParser = global_variables_state["config"]
@@ -35,7 +35,7 @@ class SardineConsumer:
             self.logger.info(f"creating server socket")
         except Exception as e:
             self.logger.error(f"Error creating server socket: {e}")
-            self.show_error_in_screen("Error creating server socket")
+            self.sardine_config.show_error_in_screen("Error creating server socket")
 
 
     def listen_for_connection(self)-> None:
@@ -46,15 +46,15 @@ class SardineConsumer:
             self.logger.info(f"Server is listening for connections with a timeout of {SOCKET_LISTEN}")
         except Exception as e:
             self.logger.error(f"Error occurred while setting up the server socket: {e}")
-            self.show_error_in_screen("Error occurred while setting up the server socket")
+            self.sardine_config.show_error_in_screen("Error occurred while setting up the server socket")
 
     
     def accept_connection(self):
         try:
             self.logger.info("Waiting for drone to connect")
-            self.server, address = self.server_socket.accept()
+            self.sardine_server, address = self.server_socket.accept()
             self.logger.info(f"connection to drone")
-            self.update_connection_status_message("connection to drone")
+            self.sardine_config.update_connection_status_message("connection to drone")
         except socket.timeout:
             self.logger.warning("Timeout occurred while waiting for data from the drone.")
             return True
@@ -66,19 +66,19 @@ class SardineConsumer:
             return False
         except Exception as e:
             self.logger.error(f"Error while waiting for drone connection: {str(e)}")
-            self.show_error_in_screen("Error while waiting for drone connection")
+            self.sardine_config.show_error_in_screen("Error while waiting for drone connection")
             return False
 
 
-    def receive_data(self, server):
+    def receive_data(self, sardine_server:socket.socket):
         try:
-            data: bytes = server.recv(self.SIZE_BYTES_FROM_DRONE)
-            print(data)
+            data: bytes = sardine_server.recv(self.SIZE_BYTES_FROM_DRONE)
             if not data:
                 return False
+            data=self.decode_and_split_json(data)
             self.logger.info("Data received from drone")
-            self.update_traffic_light_status("yellow")
-            self.increment_received_json_counter()
+            self.sardine_config.update_traffic_light_status("yellow")
+            self.sardine_config.increment_received_json_counter()
             return data
         except socket.timeout:
             self.logger.warning("Timeout occurred while data received from drone.")
@@ -88,21 +88,43 @@ class SardineConsumer:
             return False
         except ConnectionResetError as e:
             self.logger.error(f"Connection reset error occurred while receiving data: {str(e)}")
-            self.show_error_in_screen("Connection reset error occurred while receiving data")
+            self.sardine_config.show_error_in_screen("Connection reset error occurred while receiving data")
             return False
         except Exception as e:
-            self.show_error_in_screen(f"Error receiving data from drone: {e}")
+            self.sardine_config.show_error_in_screen(f"Error receiving data from drone: {e}")
             return False
+    
 
-   
-    def process_data(self, data)-> None:
+
+    def decode_and_split_json(self,data:bytes)-> Union[dict, list, None]:
+        objects: List[Dict] = []
         try:
-            json_str:str = data.decode('utf-8')
-            data:dict =json.loads(json_str)
+            buffer_data_from_drone = data.decode('utf-8')
+
+            buffer_data_without_space = buffer_data_from_drone.replace(" ", "").replace("\n", "").replace("\t", "")
+        except UnicodeDecodeError:
+            self.logger.warning("Unable to decode data. Ensure it is UTF-8 encoded.")
+            return objects
+
+        while buffer_data_without_space:
+            try:
+                json_from_buffer, buffer_position_index = json.JSONDecoder().raw_decode(buffer_data_without_space)
+                objects.append(json_from_buffer)
+
+                buffer_data_without_space = buffer_data_without_space[buffer_position_index:].lstrip()
+            except json.JSONDecodeError:
+                self.logger.warning("Incomplete or invalid JSON data detected.")
+
+                break
+
+        return objects
+   
+   ## TODO: add type hints
+    def process_data(self, data: dict)-> None:
+        try:
             all_flight_data:dict=self.process_flight_data(**data)
-            print(all_flight_data)
             if all_flight_data:
-                flight_data=FlightData(**all_flight_data)
+                flight_data:FlightData=FlightData(**all_flight_data)
             self.add_json_to_queue(flight_data)
         except JSONDecodeError as e:
             self.logger.error(f"Invalid JSON format: {e}")
@@ -140,9 +162,9 @@ class SardineConsumer:
 
     def process_flight_data(self, azimuth: float,coordinate: list,height: float,
                             timeOfLastKnownLocation: str,droneId: int) -> dict:
-        print(1)
         try:
-            flight_id:str = self._generate_flight_id(self.platform_name, self.platform_id, self.date, self.platform_flight_index)
+            flight_id:str = self._generate_flight_id(self.sardine_config.platform_name, self.sardine_config.platform_id,
+                                                     self.sardine_config.date, self.sardine_config.platform_flight_index)
 
             processed_data :dict = {
                 "AZIMUTH": self.round_to_decimal_places(azimuth, 2),
@@ -150,22 +172,22 @@ class SardineConsumer:
                     "latitude": self.round_to_decimal_places(coordinate[0], 7),
                     "longitude": self.round_to_decimal_places(coordinate[1], 7)
                 },
-                "DATE": self.date,
-                "Platform_Flight_Index": int(self.platform_flight_index),
+                "DATE": self.sardine_config.date,
+                "Platform_Flight_Index": int(self.sardine_config.platform_flight_index),
                 "FLIGHT_ID": flight_id,
                 "HEIGHT": self.round_to_decimal_places(height, 1),
                 "PITCH": 0.0,
-                "PLATFORMID": int(self.platform_id),
-                "PLATFORMNAME": self.platform_name,
+                "PLATFORMID": int(self.sardine_config.platform_id),
+                "PLATFORMNAME": self.sardine_config.platform_name,
                 "ROLL": 0.0,
-                "ROUTEID": self.route_id,
+                "ROUTEID": self.sardine_config.route_id,
                 "TIMEOFLASTKNOWNLOCATION": timeOfLastKnownLocation
             }
             return processed_data
 
         except Exception as e:
             self.logger.error(f"Error processing flight data: {e}")
-            self.show_error_in_screen(f"Error processing flight data: {e}")
+            self.sardine_config.show_error_in_screen(f"Error processing flight data: {e}")
             
 
     @staticmethod
@@ -173,7 +195,7 @@ class SardineConsumer:
         return round(number_to_float, decimal_places)
 
 
-    def _generate_flight_id(self, platform_name, platform_id, date, platform_flight_index)-> str:
+    def _generate_flight_id(self, platform_name:str, platform_id:str, date:str, platform_flight_index:int)-> str:
         conversion_date_for_flight_id:str = datetime.datetime.strptime(date, '%Y-%m-%d').strftime('%Y%m%d')
         return f"{platform_name}{platform_id}_{conversion_date_for_flight_id}_{str(platform_flight_index).zfill(4)}"
 
@@ -182,11 +204,10 @@ class SardineConsumer:
         while not self.data_queue.empty():
             try:
                 self.data_queue.get_nowait()
-                self.logger.debug("Item successfully removed from queue.")
+                self.logger.info("Item successfully removed from queue.")
             except Exception as e:
                 self.logger.error(f"Failed to clear the queue: {e}")
             
-
     def add_json_to_queue(self,data_to_queue: dict)->None:
         try:
             if self.data_queue.full():
@@ -207,7 +228,7 @@ class SardineConsumer:
 
 
 
-    def sardine_connection_active_flag(self):
+    def sardine_connection_active_flag(self)->threading.Thread:
         return  self.is_sardine_connection_active_flag.is_set()
 
 
@@ -226,9 +247,11 @@ class SardineConsumer:
                 
                 while self.sardine_connection_active_flag():
 
-                    data = self.receive_data(self.server)
-
-                    if data : self.process_data(data)
+                    data = self.receive_data(self.sardine_server)
+                    
+                    if data :
+                        for data_json in data:
+                            self.process_data(data_json)
                     if data==False : break
 
         self.close_socket()

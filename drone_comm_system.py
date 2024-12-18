@@ -73,7 +73,7 @@ def send_data_to_cloud(event,status_indicator_green,status_indicator_red ,status
     while event.is_set():
         try:
             data_from_drone = data_queue.get(block=True, timeout=1)
-            print(data_from_drone)
+            
             if data_from_drone:
                 send(data_from_drone)
                 logger.info("Sending data to cloud")
@@ -202,7 +202,7 @@ def open_socket(event: threading.Event, route_id, Platform_flight_index,
     finally:
         
         logger.info("Thread pool shut down.")
-        print(len(threading.enumerate()))
+        logger.info(f"now enumerating threads is:{len(threading.enumerate())}")
 
 
 def stop():

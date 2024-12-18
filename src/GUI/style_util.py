@@ -2,11 +2,12 @@ import flet as ft
 
 base_fields_style: dict = {
     "width": 250,
-    "bgcolor": ft.colors.GREY_200,
+    "bgcolor": ft.colors.GREY_500,
     "height": 60,
     "color": 'black',
     "text_align": "center",
     "border_radius": ft.border_radius.all(8),
+    "focused_bgcolor":ft.colors.GREY_200,
 }
 
 status_indicator_style: dict = {

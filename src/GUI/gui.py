@@ -2,28 +2,30 @@ import sys
 import time
 import os
 import signal
-import flet as ft
-from flet import Page, TextField, ElevatedButton, Row, Column, Text
 from datetime import datetime
+import flet as ft
 from flet import colors as cl, icons
+from flet import Page, TextField, ElevatedButton, Row, Column, Text,Container,ProgressRing,ControlEvent
 
 from src.GUI.style_util import base_fields_style, status_indicator_style
+from src.models.class_config.sardine_config import SardineConfig
 from src.GUI.utils.field_validator import FieldValidator
 from src.managers.sardine_manager import SardineManager
-
 
 class GUI:
     def __init__(self, page: Page):
         self.page: Page = page
         self.date_now: datetime =datetime.now()
-        self.finish_to_stop_all_tread=False
+        self.finish_to_stop_all_tread:bool=False
         self.initialize_page()
         self.create_elements()
         self.build_view()
-        self.SardineManager =None
+        
+        self.sardine_config:SardineConfig=None
+        self.SardineManager :SardineManager=None
        
 
-    def initialize_page(self):
+    def initialize_page(self)->None:
         self.page.title = "Sky View"
         self.page.window.width = 900
         self.page.window.height = 700
@@ -33,7 +35,7 @@ class GUI:
         self.page.padding = 20
 
 
-    def sardine_config (self):
+    def config(self)->dict:
         return  {
             "route_id": self.route_id.value,
             "platform_flight_index": self.platform_flight_index.value,
@@ -47,22 +49,26 @@ class GUI:
             "update_traffic_light_status": self.update_traffic_light_status,
             "update_ui_when_send_data": self.update_ui_when_send_data
         }
-    
+
+
     def create_elements(self):
         self.title: Text = Text(
             "Drone Management Dashboard",
+            style=ft.TextThemeStyle.HEADLINE_SMALL,
             size=30,
             weight="bold",
             color=cl.CYAN,
             text_align="center",
         )
 
+
         self.route_id: TextField = TextField(
             **base_fields_style,
             label="Route id",
             max_length=20,
             hint_text="Letters or numbers",
-            value='flight_12'
+            value='flight_12',
+            
         )
 
         self.platform_flight_index: TextField = TextField(
@@ -89,21 +95,21 @@ class GUI:
             hint_text="Letters only"
         )
 
-        self.start_button: ElevatedButton = ElevatedButton(text="Start", width=200, bgcolor=cl.GREEN)
+        self.start_button: ElevatedButton = ElevatedButton(text="Start", width=200, bgcolor=cl.GREEN, tooltip="Click to start",elevation=5)
         self.start_button.on_click = self.handle_start_click
 
-        self.stop_button: ElevatedButton = ElevatedButton(text="Stop", width=200, bgcolor=cl.RED, visible=False)
+        self.stop_button: ElevatedButton = ElevatedButton(text="Stop", width=200, bgcolor=cl.RED, visible=False, tooltip="Click to stop",elevation=5,)
         self.stop_button.on_click = self.handle_stop_click
 
-        self.loading_when_program_not_finish = ft.ProgressRing(visible=False)
+        self.loading_when_program_not_finish:ProgressRing = ProgressRing(visible=False,)
 
-        self.status_indicator_unconnected = ft.Container(**status_indicator_style, bgcolor="red", visible=True)
-        self.status_indicator_connected_and_receives_data = ft.Container(**status_indicator_style, bgcolor="yellow", visible=False)
-        self.status_indicator_send_to_cloud = ft.Container(**status_indicator_style, bgcolor="green",visible=False)
+        self.status_indicator_unconnected:Container = Container(**status_indicator_style, bgcolor="red", visible=True)
+        self.status_indicator_connected_and_receives_data:Container = Container(**status_indicator_style, bgcolor="yellow", visible=False)
+        self.status_indicator_send_to_cloud:Container = Container(**status_indicator_style, bgcolor="green",visible=False)
 
         self.status_connection :Text= Text(value="", color="white")
 
-        self.date :ElevatedButton = ft.ElevatedButton(
+        self.date :ElevatedButton = ElevatedButton(
         "Pick Date",
         icon=icons.CALENDAR_MONTH,
         on_click=lambda e: self.page.open(
@@ -115,7 +121,9 @@ class GUI:
         ),
         bgcolor='#00ACC1',
         width=250,
-        height=50
+        height=50,
+        tooltip="Select a date",
+        elevation=5,
         )
 
 
@@ -130,76 +138,86 @@ class GUI:
         self.page.window.on_event=self.handle_window_event
 
 
-    def _handle_change_date_view(self,e: ft.ControlEvent):
+    def _handle_change_date_view(self,e: ControlEvent):
         self.date.text = e.control.value.strftime("%Y-%m-%d")
         self.date.update()
-        
-    
-    def handle_start_click(self,e: ft.ControlEvent):
-        
-        if not FieldValidator.validate_all_field(
+
+
+    def field_validator(self)-> bool:
+        if  FieldValidator.validate_all_field(
                                             self.route_id,
                                             self.platform_flight_index,
                                             self.platform_id,
                                             self.platform_name,
                                             self.date
                                             ):
+            return True
+        self.show_error_in_screen("")
+        
+
+
+    def handle_start_click(self,e: ControlEvent):
+        
+        if not self.field_validator():
             self.show_error_in_screen("Some fields are missing. Please fill in all fields")
             return
         
-        self.SardineManager=SardineManager(**self.sardine_config())
+        self.sardine_config=SardineConfig(**self.config())
+        self.SardineManager=SardineManager(self.sardine_config)
 
         self.set_input_fields_disabled_status()
         
         self.SardineManager.start_listening_for_sardine()
-        self.when_tread_finish_to_run()
+        self.when_tread_finish_to_run_sardine_manager()
         self.update_traffic_light_status("red")      
         
 
-    def handle_stop_click(self,e: ft.ControlEvent):
+    def handle_stop_click(self,e: ControlEvent):
         self.SardineManager.stop_listening_for_sardine()
-        self.add_loading_and_set_page_disabled_when_tread_not_finish()
+        self.when_tread_finish_to_run_add_loading()
         self.enable_input_fields()
         self.update_traffic_light_status("red")
 
 
-    def add_loading_and_set_page_disabled_when_tread_not_finish(self):
+    def when_tread_finish_to_run_add_loading(self)->None:
         self.loading_when_program_not_finish.visible=True
+        self.status_connection.value=""
+        self.show_error_in_screen("")
         self.set_all_element_in_page_disabled()
 
 
-    def when_tread_finish_to_run(self):
+    def when_tread_finish_to_run_sardine_manager(self)->None:
         self.loading_when_program_not_finish.visible=False
         self.set_all_element_in_page_enable()
 
 
-    def set_all_element_in_page_disabled(self):
-        all_element_in_page={self.platform_name,
-                    self.platform_id,
-                    self.date,
-                    self.platform_flight_index,
-                    self.route_id,
-                    self.start_button,
+    def set_all_element_in_page_disabled(self)->None:
+        all_element_in_page={self.platform_name:TextField,
+                    self.platform_id:TextField,
+                    self.date:ElevatedButton,
+                    self.platform_flight_index:TextField,
+                    self.route_id:TextField,
+                    self.start_button:TextField,
                     }
         for element in all_element_in_page:
             element.disabled=True
         self.page.update()
 
 
-    def set_all_element_in_page_enable(self):
-        all_element_in_page={self.platform_name,
-                    self.platform_id,
-                    self.date,
-                    self.platform_flight_index,
-                    self.route_id,
-                    self.start_button,
+    def set_all_element_in_page_enable(self)->None:
+        all_element_in_page={self.platform_name:TextField,
+                    self.platform_id:TextField,
+                    self.date:ElevatedButton,
+                    self.platform_flight_index:TextField,
+                    self.route_id:TextField,
+                    self.start_button:TextField,
                     }
         for element in all_element_in_page:
             element.disabled=False
         self.page.update()
 
 
-    def set_input_fields_disabled_status(self):
+    def set_input_fields_disabled_status(self)->None:
 
         self.start_button.visible = False
         self.stop_button.visible = True
@@ -218,7 +236,7 @@ class GUI:
         self.page.update()
 
 
-    def enable_input_fields(self):
+    def enable_input_fields(self)->None:
 
         self.start_button.visible = True
         self.stop_button.visible = False
@@ -237,7 +255,7 @@ class GUI:
         self.page.update()
 
 
-    def update_ui_when_send_data(self):
+    def update_ui_when_send_data(self)->None:
         self.update_connection_status_message("Sending data to cloud")
 
         status_indicator_color ="green"
@@ -246,25 +264,25 @@ class GUI:
         self.increment_send_json_counter()
 
 
-    def show_error_in_screen(self,problem:str):
+    def show_error_in_screen(self,problem:str)->None:
         self.show_running_error.value = ""
         self.show_running_error.value = problem
         self.show_running_error.update()
 
 
-    def increment_received_json_counter(self):
-        new_value = int(self.received_json_counter.value) + 1
+    def increment_received_json_counter(self)->None:
+        new_value:int = int(self.received_json_counter.value) + 1
         self.received_json_counter.value = str(new_value)
         self.received_json_counter.update()
 
 
-    def increment_send_json_counter(self):
-        new_value = int(self.sent_json_counter.value) + 1
+    def increment_send_json_counter(self)->None:
+        new_value:int = int(self.sent_json_counter.value) + 1
         self.sent_json_counter.value = str(new_value)
         self.sent_json_counter.update()
 
 
-    def update_traffic_light_status(self,status_indicator_color: str):
+    def update_traffic_light_status(self,status_indicator_color: str)->None:
         self.status_indicator_unconnected.visible = False
         self.status_indicator_connected_and_receives_data.visible = False
         self.status_indicator_send_to_cloud.visible = False
@@ -283,12 +301,12 @@ class GUI:
         self.status_indicator_send_to_cloud.update()
 
     
-    def update_connection_status_message(self, status_message: str):
+    def update_connection_status_message(self, status_message: str)->None:
         self.status_connection.value = status_message
         self.status_connection.update()
 
 
-    def handle_window_event(self,e: ft.ControlEvent):
+    def handle_window_event(self,e: ControlEvent)->None:
         if e.data == "close":
             self.page.window.prevent_close=False
             self.page.window.close()
@@ -299,9 +317,9 @@ class GUI:
                 os.kill(os.getpid(),signal.SIGTERM)
 
 
-    def build_view(self):
+    def build_view(self)->None:
         self.page.controls.clear()
-        
+
         self.page.add(
             Row([self.title], alignment=ft.MainAxisAlignment.CENTER),
             Row(controls=[self.platform_name, self.platform_id,self.date],alignment=ft.MainAxisAlignment.CENTER,),
