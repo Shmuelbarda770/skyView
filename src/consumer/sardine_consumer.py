@@ -5,21 +5,21 @@ import datetime
 import threading
 import configparser
 from queue import Queue
-from typing import Dict , List, Any, Union
+from typing import Dict , List, Union
 from json.decoder import JSONDecodeError
 
 from src.GUI.global_variables import global_variables_state
 from src.models.flight_data import FlightData
-from src.models.class_config.sardine_config import SardineConfig
+from src.models.class_config.config import Config
 
 
 class SardineConsumer:
-    def __init__(self,data_queue:Queue,is_sardine_connection_active_flag: threading.Event,sardine_config:SardineConfig): 
+    def __init__(self,data_queue:Queue,is_connection_active_flag: threading.Event,config_data): 
          
-        self.sardine_config:SardineConfig=sardine_config
+        self.sardine_config=config_data
 
         self.logger:logging.Logger=global_variables_state["logger"].get_logger()
-        self.is_sardine_connection_active_flag: threading.Event= is_sardine_connection_active_flag
+        self.is_connection_active_flag: threading.Event= is_connection_active_flag
         self.config: configparser.ConfigParser = global_variables_state["config"]
         self.data_queue:Queue=data_queue
 
@@ -35,7 +35,7 @@ class SardineConsumer:
             self.logger.info(f"creating server socket")
         except Exception as e:
             self.logger.error(f"Error creating server socket: {e}")
-            self.sardine_config.show_error_in_screen("Error creating server socket")
+            # self.sardine_config.show_error_in_screen("Error creating server socket")
 
 
     def listen_for_connection(self)-> None:
@@ -46,7 +46,7 @@ class SardineConsumer:
             self.logger.info(f"Server is listening for connections with a timeout of {SOCKET_LISTEN}")
         except Exception as e:
             self.logger.error(f"Error occurred while setting up the server socket: {e}")
-            self.sardine_config.show_error_in_screen("Error occurred while setting up the server socket")
+            # self.sardine_config.show_error_in_screen("Error occurred while setting up the server socket")
 
     
     def accept_connection(self):
@@ -54,7 +54,7 @@ class SardineConsumer:
             self.logger.info("Waiting for drone to connect")
             self.sardine_server, address = self.server_socket.accept()
             self.logger.info(f"connection to drone")
-            self.sardine_config.update_connection_status_message("connection to drone")
+            # self.sardine_config.update_connection_status_message("connection to drone")
         except socket.timeout:
             self.logger.warning("Timeout occurred while waiting for data from the drone.")
             return True
@@ -66,7 +66,7 @@ class SardineConsumer:
             return False
         except Exception as e:
             self.logger.error(f"Error while waiting for drone connection: {str(e)}")
-            self.sardine_config.show_error_in_screen("Error while waiting for drone connection")
+            # self.sardine_config.show_error_in_screen("Error while waiting for drone connection")
             return False
 
 
@@ -88,10 +88,10 @@ class SardineConsumer:
             return False
         except ConnectionResetError as e:
             self.logger.error(f"Connection reset error occurred while receiving data: {str(e)}")
-            self.sardine_config.show_error_in_screen("Connection reset error occurred while receiving data")
+            # self.sardine_config.show_error_in_screen("Connection reset error occurred while receiving data")
             return False
         except Exception as e:
-            self.sardine_config.show_error_in_screen(f"Error receiving data from drone: {e}")
+            # self.sardine_config.show_error_in_screen(f"Error receiving data from drone: {e}")
             return False
     
 
@@ -119,7 +119,7 @@ class SardineConsumer:
 
         return objects
    
-   ## TODO: add type hints
+
     def process_data(self, data: dict)-> None:
         try:
             all_flight_data:dict=self.process_flight_data(**data)
@@ -187,7 +187,7 @@ class SardineConsumer:
 
         except Exception as e:
             self.logger.error(f"Error processing flight data: {e}")
-            self.sardine_config.show_error_in_screen(f"Error processing flight data: {e}")
+            # self.sardine_config.show_error_in_screen(f"Error processing flight data: {e}")
             
 
     @staticmethod
@@ -228,16 +228,16 @@ class SardineConsumer:
 
 
 
-    def sardine_connection_active_flag(self)->threading.Thread:
-        return  self.is_sardine_connection_active_flag.is_set()
+    def connection_active_flag(self)->threading.Thread:
+        return  self.is_connection_active_flag.is_set()
 
 
     def run(self):
 
-        while self.sardine_connection_active_flag():
+        while self.connection_active_flag():
             self.initialize_socket()
         
-            while self.sardine_connection_active_flag():
+            while self.connection_active_flag():
 
                 server_time_out = self.accept_connection()
 
@@ -245,7 +245,7 @@ class SardineConsumer:
                 if server_time_out==False: break
 
                 
-                while self.sardine_connection_active_flag():
+                while self.connection_active_flag():
 
                     data = self.receive_data(self.sardine_server)
                     

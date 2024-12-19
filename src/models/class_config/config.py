@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Callable
 
-class SardineConfig(BaseModel):
+class Config(BaseModel):
     route_id: str
     platform_flight_index: int
     platform_id: str

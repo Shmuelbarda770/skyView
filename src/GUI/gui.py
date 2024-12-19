@@ -8,7 +8,7 @@ from flet import colors as cl, icons
 from flet import Page, TextField, ElevatedButton, Row, Column, Text,Container,ProgressRing,ControlEvent
 
 from src.GUI.style_util import base_fields_style, status_indicator_style
-from src.models.class_config.sardine_config import SardineConfig
+from  src.models.class_config.config import Config
 from src.GUI.utils.field_validator import FieldValidator
 from src.managers.sardine_manager import SardineManager
 
@@ -21,7 +21,7 @@ class GUI:
         self.create_elements()
         self.build_view()
         
-        self.sardine_config:SardineConfig=None
+        self.config:Config=None
         self.SardineManager :SardineManager=None
        
 
@@ -35,7 +35,7 @@ class GUI:
         self.page.padding = 20
 
 
-    def config(self)->dict:
+    def config_data(self)->dict:
         return  {
             "route_id": self.route_id.value,
             "platform_flight_index": self.platform_flight_index.value,
@@ -139,7 +139,9 @@ class GUI:
 
 
     def _handle_change_date_view(self,e: ControlEvent):
-        self.date.text = e.control.value.strftime("%Y-%m-%d")
+        value:datetime = e.control.value
+        self.date.text = value.strftime("%Y-%m-%d")
+
         self.date.update()
 
 
@@ -162,8 +164,8 @@ class GUI:
             self.show_error_in_screen("Some fields are missing. Please fill in all fields")
             return
         
-        self.sardine_config=SardineConfig(**self.config())
-        self.SardineManager=SardineManager(self.sardine_config)
+        self.config=Config(**self.config_data())
+        self.SardineManager=SardineManager(self.config)
 
         self.set_input_fields_disabled_status()
         
