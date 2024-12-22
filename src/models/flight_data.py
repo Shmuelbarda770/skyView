@@ -1,7 +1,8 @@
-from pydantic import BaseModel,field_validator
+from pydantic import BaseModel, field_validator
+
 
 class FlightData(BaseModel):
-    ROUTEID:str
+    ROUTEID: str
     PLATFORMNAME: str
     FLIGHT_ID: str
     DATE: str
@@ -10,10 +11,9 @@ class FlightData(BaseModel):
     COORDINATE: dict[str, float]
     HEIGHT: float
     TIMEOFLASTKNOWNLOCATION: str
-    ROLL:float
-    PITCH:float
-    PLATFORMID:int
-
+    ROLL: float
+    PITCH: float
+    PLATFORMID: int
 
     @field_validator("TIMEOFLASTKNOWNLOCATION")
     @classmethod
@@ -28,16 +28,16 @@ class FlightData(BaseModel):
     def validate_coordinate(cls, value):
         if len(value) != 2:
             raise ValueError("Invalid coordinate length. It should be dict and the length should be 2")
-        
-        latitude = value['latitude']
-        longitude = value['longitude']
+
+        latitude = value["latitude"]
+        longitude = value["longitude"]
 
         if not (10 <= latitude <= 50):
             raise ValueError("Latitude out of range. It should be between 10 and 50")
-        
+
         if not (10 <= longitude <= 50):
             raise ValueError("Longitude out of range. It should be between 10 and 50")
-        
+
         return value
 
     @field_validator("HEIGHT")
