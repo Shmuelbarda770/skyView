@@ -70,10 +70,11 @@ class SardineConsumer:
     def receive_data(self, sardine_server: socket.socket):
         try:
             data: bytes = sardine_server.recv(self.SIZE_BYTES_FROM_DRONE)
+            
             if not data:
                 return False
             data_decode:list |None = self.decode_and_split_json(data)
-            self.logger.info("Data received from drone")
+            self.logger.info("Data rceiveed from drone")
             self.sardine_config.update_traffic_light_status("yellow")
             self.sardine_config.increment_received_json_counter()
             return data_decode
@@ -93,37 +94,45 @@ class SardineConsumer:
             return False
 
     def extract_content_within_parentheses(self, data: bytes):
+        str_data=data.decode('utf-8')
         stack: list = []
         contents: list = []
 
-        for i, char in enumerate(data):
+        for i, char in enumerate(str_data):
             if char == "{":
                 stack.append(i)
             elif char == "}":
                 if stack:
                     opening_index = stack.pop()
 
-                    contents.append(data[opening_index : i + 1])
-
+                    contents.append(str_data[opening_index : i + 1])
+        
         return contents
 
     def decode_and_split_json(self, data: bytes) -> Union[list, None]:
         data_within_parentheses: list = self.extract_content_within_parentheses(data)
+        
+        filtered_lson = []
         filtered_objects: list = []
 
         for i in data_within_parentheses:
             try:
                 data_to_dict: dict = json.loads(i)
+                filtered_lson.append(data_to_dict)
             except json.JSONDecodeError as e:
                 continue
 
-            if isinstance(data_to_dict, dict):
+        for i in filtered_lson:
+            if isinstance(i, dict):
                 try:
                     if data_to_dict["latitude"]:
                         continue
+                    
                 except:
                     pass
-                filtered_objects.append(data)
+                filtered_objects.append(i)
+                
+        
         self.logger.info("return data after decode and split json")
         return filtered_objects
 
@@ -256,7 +265,6 @@ class SardineConsumer:
                 while self.connection_active_flag():
 
                     data = self.receive_data(self.sardine_server)
-
                     if data:
                         for data_json in data:
                             self.process_data(data_json)
