@@ -40,7 +40,7 @@ class CloudDataSender:
                     send(convert_object_to_json)
                     end_time = time.time()
                     execution_time = end_time - start_time
-                    self.logger.debug(f"time og running function send is {execution_time}")
+                    self.logger.info(f"time og running function send is {execution_time}")
 
                     self.logger.info("Sending data to cloud")
                     self.config_data.update_ui_when_send_data()

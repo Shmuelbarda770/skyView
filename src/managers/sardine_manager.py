@@ -19,6 +19,7 @@ class SardineManager:
 
         self.config_data: ConfigData = config_data
         self.data_queue: Queue = queue.Queue(maxsize=self.QUEUE_SIZE)
+        
         self.is_connection_active_flag: threading.Event = threading.Event()
         self.message_id_generator: MessageIDGenerator = MessageIDGenerator()
         self.logger: Logger = global_variables_state["logger"]

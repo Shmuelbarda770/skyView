@@ -5,7 +5,7 @@ import datetime
 import threading
 import configparser
 from queue import Queue
-from typing import Union,Optional
+from typing import Union
 from json.decoder import JSONDecodeError
 
 from src.GUI.global_variables import global_variables_state
@@ -146,6 +146,8 @@ class SardineConsumer:
             self.logger.error(f"Invalid JSON format: {e}")
         except ValueError as e:
             self.logger.error(f"Validation error: {e}")
+            self.sardine_config.show_error_in_screen(f"Error in data from drone")
+            return None
         except Exception as e:
             self.logger.error(f"Error processing data: {e}")
 
@@ -230,6 +232,7 @@ class SardineConsumer:
 
     def add_json_to_queue(self, data_to_queue: FlightData) -> None:
         try:
+            print(self.data_queue.qsize())  
             if self.data_queue.full():
                 self.clear_queue()
                 self.logger.info("Queue has been cleared successfully.")
